@@ -85,7 +85,11 @@ APP_LOG="$TEST_TMP/app.log"
 echo "Launching target application: $TARGET_SCRIPT"
 echo "Isolated XDG_DATA_HOME: $XDG_DATA_HOME"
 
-python3 "$TARGET_SCRIPT" > "$APP_LOG" 2>&1 &
+if [[ "$TARGET_SCRIPT" == *.py ]]; then
+    python3 "$TARGET_SCRIPT" > "$APP_LOG" 2>&1 &
+else
+    "$TARGET_SCRIPT" > "$APP_LOG" 2>&1 &
+fi
 APP_PID=$!
 
 # Monitor application launch for stabilization
