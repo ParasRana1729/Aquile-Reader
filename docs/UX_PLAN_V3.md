@@ -1,7 +1,8 @@
 # UX Maturity Plan v3 — test-first road to Aquile parity
 
-Status: implemented 2026-10-03. Full suite: 317/317 pass
-(263 prior + 21 WP-A + 19 WP-B + 14 WP-C).
+Status: implementation INCOMPLETE — launch crash found 2026-10-03, fix in
+progress. See `docs/HANDOVER.md` (authoritative). DO NOT release or push
+until the Xvfb-verified fix lands.
 
 ## 5. Results (red → green record)
 
