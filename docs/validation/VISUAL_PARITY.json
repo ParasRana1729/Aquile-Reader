@@ -1,0 +1,274 @@
+{
+  "generated_utc": "2026-10-03T08:22:53.368960+00:00",
+  "headless": true,
+  "no_screenshots": true,
+  "style_css": "src/aquile/ui/style.css",
+  "fixture": "fixtures/canonical-text.epub",
+  "results": {
+    "VP-01": {
+      "id": "VP-01",
+      "status": "PASS",
+      "errors": [],
+      "checked": [
+        {
+          "selector": ".reading-column",
+          "property": "padding",
+          "expected_px": [
+            24.0
+          ],
+          "actual_px": [
+            24.0
+          ]
+        },
+        {
+          "selector": ".reading-column",
+          "property": "border-radius",
+          "expected_px": [
+            4.0
+          ],
+          "actual_px": [
+            4.0
+          ]
+        },
+        {
+          "selector": ".reading-column-separator",
+          "property": "min-width",
+          "expected_px": [
+            1.0
+          ],
+          "actual_px": [
+            1.0
+          ]
+        },
+        {
+          "selector": ".reading-column-separator",
+          "property": "margin-top",
+          "expected_px": [
+            24.0
+          ],
+          "actual_px": [
+            24.0
+          ]
+        },
+        {
+          "selector": ".reading-column-separator",
+          "property": "margin-bottom",
+          "expected_px": [
+            24.0
+          ],
+          "actual_px": [
+            24.0
+          ]
+        },
+        {
+          "selector": ".reader-progress-footer",
+          "property": "padding",
+          "expected_px": [
+            8.0,
+            16.0
+          ],
+          "actual_px": [
+            8.0,
+            16.0
+          ]
+        },
+        {
+          "selector": ".book-card",
+          "property": "padding",
+          "expected_px": [
+            16.0
+          ],
+          "actual_px": [
+            16.0
+          ]
+        },
+        {
+          "selector": ".book-card",
+          "property": "margin",
+          "expected_px": [
+            8.0
+          ],
+          "actual_px": [
+            8.0
+          ]
+        },
+        {
+          "selector": ".book-card",
+          "property": "border-radius",
+          "expected_px": [
+            8.0
+          ],
+          "actual_px": [
+            8.0
+          ]
+        },
+        {
+          "selector": ".empty-library-label",
+          "property": "margin",
+          "expected_px": [
+            48.0
+          ],
+          "actual_px": [
+            48.0
+          ]
+        }
+      ],
+      "tolerance_px": 1.0
+    },
+    "VP-02": {
+      "id": "VP-02",
+      "status": "PASS",
+      "errors": [],
+      "pairs": [
+        {
+          "theme": "light",
+          "selector": ".aquile-theme-light",
+          "bg": "#fbfbfb",
+          "fg": "#242424",
+          "contrast": 15.001,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "light",
+          "selector": ".aquile-theme-light .reading-surface",
+          "bg": "#ffffff",
+          "fg": "#242424",
+          "contrast": 15.523,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "light",
+          "selector": ".aquile-theme-light .reading-column",
+          "bg": "#ffffff",
+          "fg": "#242424",
+          "contrast": 15.523,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "dark",
+          "selector": ".aquile-theme-dark",
+          "bg": "#1a1a1a",
+          "fg": "#e0e0e0",
+          "contrast": 13.184,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "dark",
+          "selector": ".aquile-theme-dark .reading-surface",
+          "bg": "#202020",
+          "fg": "#dedede",
+          "contrast": 12.111,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "dark",
+          "selector": ".aquile-theme-dark .reading-column",
+          "bg": "#202020",
+          "fg": "#dedede",
+          "contrast": 12.111,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "sepia",
+          "selector": ".aquile-theme-sepia",
+          "bg": "#ece3ce",
+          "fg": "#433422",
+          "contrast": 9.382,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "sepia",
+          "selector": ".aquile-theme-sepia .reading-surface",
+          "bg": "#f6efe2",
+          "fg": "#433422",
+          "contrast": 10.476,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        },
+        {
+          "theme": "sepia",
+          "selector": ".aquile-theme-sepia .reading-column",
+          "bg": "#f6efe2",
+          "fg": "#433422",
+          "contrast": 10.476,
+          "delta_e_vs_documented": {
+            "bg": 0.0,
+            "fg": 0.0
+          }
+        }
+      ],
+      "min_contrast": 4.5,
+      "theme_separation_delta_e": {
+        ".aquile-theme-light": 89.35,
+        ".aquile-theme-light .reading-surface": 87.75,
+        ".aquile-theme-light .reading-column": 87.75
+      },
+      "b0_delta_e2000": "blocked: needs captured B0 swatches on target desktop (G1); documented-token Delta-E reported as headless proxy only"
+    },
+    "VP-03": {
+      "id": "VP-03",
+      "status": "BLOCKED",
+      "errors": [],
+      "reason": "SSIM >= 0.99 per captured app-owned region requires screenshots from the target Ubuntu desktop (GNOME Wayland/X11, matched logical viewport, fonts, settings) plus frozen B0 reference captures. No display is available headless, and screenshot comparison is explicitly out of scope for this checker."
+    },
+    "VP-04": {
+      "id": "VP-04",
+      "status": "PASS",
+      "errors": [],
+      "fixture": "canonical-text.epub",
+      "settings": {
+        "viewport_width": 1024,
+        "viewport_height": 768,
+        "columns": 2,
+        "font_size": 16,
+        "line_height": 1.6
+      },
+      "page_count": 3,
+      "alt_font_size": 18,
+      "alt_page_count": 4,
+      "offsets_match_rerun": true,
+      "offsets_match_after_settings_restore": true,
+      "offsets_head": [
+        0,
+        2336,
+        4512
+      ],
+      "settings_change_yields_expected_difference": true
+    },
+    "VP-05": {
+      "id": "VP-05",
+      "status": "PASS",
+      "errors": [],
+      "turns": 200,
+      "pages": 3,
+      "p50_ms": 0.0001,
+      "p95_ms": 0.0002,
+      "max_ms": 0.0018,
+      "budget_p95_ms": 100.0,
+      "headless_proxy_note": "headless paginator timing only; on-device PF-03 confirmation needs target desktop (matched hardware)"
+    }
+  }
+}

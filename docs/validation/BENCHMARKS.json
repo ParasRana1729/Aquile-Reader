@@ -1,0 +1,143 @@
+{
+  "schema": "aquile-bench/1",
+  "environment": {
+    "python": "3.14.4",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "processor": "",
+    "system": "Linux 7.0.0-38-generic",
+    "cpu_count": 16
+  },
+  "budgets": {
+    "ms": {
+      "PF-01": 3000.0,
+      "PF-02": 2000.0,
+      "PF-03": 100.0,
+      "PF-04": 250.0
+    },
+    "mib": {
+      "PF-06-idle": 500.0,
+      "PF-06-epub": 750.0
+    }
+  },
+  "harness_wall_ms": 584.72,
+  "library": {
+    "insert_1000_ms": 268.56,
+    "cold_first_list_all_ms": 8.3069,
+    "rows": 1000,
+    "warm_list_all": {
+      "n": 30,
+      "min_ms": 5.8333,
+      "p50_ms": 6.9354,
+      "p95_ms": 7.9561,
+      "max_ms": 8.4385,
+      "mean_ms": 6.9331
+    }
+  },
+  "epub_open": {
+    "fixture": "fixtures/canonical-text.epub",
+    "synthetic": false,
+    "fixture_bytes": 3897,
+    "compressed_bytes": 2891,
+    "uncompressed_bytes": 10315,
+    "n_text_docs": 7,
+    "open_proxy": {
+      "n": 30,
+      "min_ms": 0.3924,
+      "p50_ms": 0.4057,
+      "p95_ms": 0.4389,
+      "max_ms": 0.4574,
+      "mean_ms": 0.4104
+    }
+  },
+  "page_turn": {
+    "ticks": 200,
+    "words_total": 27874,
+    "tracker": "ReadingSessionTracker",
+    "page_turn": {
+      "n": 200,
+      "min_ms": 0.0072,
+      "p50_ms": 0.0339,
+      "p95_ms": 0.3777,
+      "max_ms": 0.4187,
+      "mean_ms": 0.0848
+    }
+  },
+  "search": {
+    "method": "python-substring-filter over BookRepository.list_all() snapshot (1000 rows)",
+    "queries": [
+      "bench 00",
+      "author 7",
+      "lorem",
+      "BOOK-0999",
+      "nonexistent-zzz"
+    ],
+    "n_runs": 30,
+    "filter": {
+      "n": 30,
+      "min_ms": 0.3287,
+      "p50_ms": 1.0418,
+      "p95_ms": 1.0844,
+      "max_ms": 1.0856,
+      "mean_ms": 0.9072
+    },
+    "last_hits": 0
+  },
+  "memory": {
+    "tracemalloc_current_bytes": 2547462,
+    "tracemalloc_peak_bytes": 2654733,
+    "tracemalloc_peak_mib": 2.532,
+    "rss_after_library_mib": 26.3,
+    "hwm_after_library_mib": 26.3,
+    "rss_after_epub_mib": 26.3,
+    "hwm_after_epub_mib": 26.3,
+    "rss_final_mib": 25.99,
+    "rss_hwm_mib": 26.02,
+    "note": "single-process RSS only, not total process-tree; GUI renderers/GPU not loaded"
+  },
+  "results": {
+    "PF-01": {
+      "target": "p95 <= 3000 ms (cold launch proxy: fresh temp-DB first list_all)",
+      "p95_ms": 8.3069,
+      "pass": true
+    },
+    "PF-02": {
+      "target": "p95 <= 2000 ms (EPUB open proxy: stdlib zipfile extraction)",
+      "p95_ms": 0.4389,
+      "pass": true
+    },
+    "PF-03": {
+      "target": "p95 <= 100 ms (warm page turn proxy: word-estimate + tracker tick)",
+      "p95_ms": 0.3777,
+      "pass": true
+    },
+    "PF-04": {
+      "target": "p95 <= 250 ms (search/filter over 1000 books)",
+      "p95_ms": 1.0844,
+      "pass": true
+    },
+    "PF-05": {
+      "target": "background work; UI input responds within 250 ms",
+      "result": "not measured headless (no GUI event loop)",
+      "pass": null
+    },
+    "PF-06": {
+      "target": "<= 500 MiB idle / <= 750 MiB with EPUB (total process-tree RSS)",
+      "rss_final_mib": 25.99,
+      "rss_hwm_mib": 26.02,
+      "tracemalloc_peak_mib": 2.532,
+      "tracemalloc_current_mib": 2.429,
+      "pass": true
+    },
+    "PF-07": {
+      "target": "lazy rendering, bounded cache; 1000-page traversal w/o unbounded growth",
+      "result": "not measured headless (no renderer); traversal proxy is 200 regex ticks only",
+      "pass": null
+    }
+  },
+  "notes": [
+    "Headless proxies only: no GTK/Adw, no rendering, no matched-hardware B0 comparison.",
+    "PF-05/PF-07 cannot pass headless; recorded as pass=null (not run in GUI sense).",
+    "Real-GUI acceptance requires AT-13 on the documented 4-core/8GB/SSD/60Hz rig."
+  ]
+}
