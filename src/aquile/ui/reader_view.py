@@ -56,49 +56,28 @@ class ReaderView(Gtk.Box):
             self.current_page_idx = progress.page_index
 
     def _build_ui(self):
-        # 1. HeaderBar
-        self.header = Adw.HeaderBar()
-        self.append(self.header)
+        from .reader_chrome import ReaderToolbar, ReaderStatusBar, ReaderDisplayPopover
 
-        # Back to Library button
-        btn_back = Gtk.Button(icon_name="go-previous-symbolic")
-        btn_back.set_tooltip_text("Back to Library")
-        btn_back.connect("clicked", self._on_back_clicked)
-        self.header.pack_start(btn_back)
+        # 1. Dark Aquile-style toolbar (B0: back/menu/TOC/bookmark left;
+        #    search/read-aloud/text/dictionary/fullscreen right).
+        self.toolbar = ReaderToolbar(callbacks={
+            "back": self._on_back_clicked,
+            "menu": self._on_toc_clicked,
+            "toc": self._on_toc_clicked,
+            "bookmark": self._on_add_annotation_clicked,
+            "read_aloud": self._on_tts_clicked,
+            "dictionary": self._on_dictionary_clicked,
+            "fullscreen": self._on_fullscreen_clicked,
+        })
+        self.append(self.toolbar)
 
-        # Table of Contents button
-        btn_toc = Gtk.Button(icon_name="view-list-bullet-symbolic")
-        btn_toc.set_tooltip_text("Table of Contents")
-        btn_toc.connect("clicked", self._on_toc_clicked)
-        self.header.pack_start(btn_toc)
-
-        # Title Label
-        self.title_widget = Adw.WindowTitle(title=self.book.title, subtitle=self.book.author)
-        self.header.set_title_widget(self.title_widget)
-
-        # Bookmark / Note button
-        btn_bookmark = Gtk.Button(icon_name="user-bookmarks-symbolic")
-        btn_bookmark.set_tooltip_text("Add Note / Bookmark (FR-10)")
-        btn_bookmark.connect("clicked", self._on_add_annotation_clicked)
-        self.header.pack_end(btn_bookmark)
-
-        # Settings button
-        btn_settings = Gtk.Button(icon_name="preferences-system-symbolic")
-        btn_settings.set_tooltip_text("Typography & Layout Settings (FR-09)")
-        btn_settings.connect("clicked", self._on_settings_clicked)
-        self.header.pack_end(btn_settings)
-
-        # Read-aloud button (FR-12, WP-12)
-        btn_tts = Gtk.Button(icon_name="audio-speakers-symbolic")
-        btn_tts.set_tooltip_text("Read Aloud (FR-12)")
-        btn_tts.connect("clicked", self._on_tts_clicked)
-        self.header.pack_end(btn_tts)
-
-        # Dictionary button (FR-13, WP-12)
-        btn_dict = Gtk.Button(icon_name="accessories-dictionary-symbolic")
-        btn_dict.set_tooltip_text("Dictionary Lookup (FR-13)")
-        btn_dict.connect("clicked", self._on_dictionary_clicked)
-        self.header.pack_end(btn_dict)
+        self.display_popover = ReaderDisplayPopover(
+            self.settings, self.settings_repo,
+            on_changed=self._on_settings_updated,
+        )
+        self.display_popover.set_parent(self.toolbar.buttons["display_settings"])
+        self.toolbar.callbacks["display_settings"] = lambda b: self.display_popover.popup()
+        self.toolbar.callbacks["search"] = self._on_search_clicked
 
         # 2. Reading Canvas (Two-Column & Single-Column Container)
         self.reading_canvas = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=24)
@@ -136,28 +115,11 @@ class ReaderView(Gtk.Box):
         self.right_text_view.add_css_class("reading-column")
         self.reading_canvas.append(self.right_text_view)
 
-        # 3. Footer Bar (Navigation & Progress)
-        self.footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
-        self.footer.add_css_class("reader-progress-footer")
-        self.append(self.footer)
-
-        self.btn_prev = Gtk.Button(icon_name="go-previous-symbolic")
-        self.btn_prev.set_tooltip_text("Previous Page (Left Arrow / Page Up)")
-        self.btn_prev.connect("clicked", lambda b: self.prev_page())
-        self.footer.append(self.btn_prev)
-
-        self.page_label = Gtk.Label(label="Page 1 of 1")
-        self.page_label.add_css_class("reader-page-label")
-        self.footer.append(self.page_label)
-
-        self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_hexpand(True)
-        self.footer.append(self.progress_bar)
-
-        self.btn_next = Gtk.Button(icon_name="go-next-symbolic")
-        self.btn_next.set_tooltip_text("Next Page (Right Arrow / Page Down / Space)")
-        self.btn_next.connect("clicked", lambda b: self.next_page())
-        self.footer.append(self.btn_next)
+        # 3. Aquile status bar: Chapter » Section | page/total | %.
+        self.status_bar = ReaderStatusBar()
+        self.append(self.status_bar)
+        # Compat alias kept for external readers of page text.
+        self.page_label = self.status_bar.page_label
 
         # 4. Keyboard Controller Event
         key_controller = Gtk.EventControllerKey()
@@ -170,7 +132,12 @@ class ReaderView(Gtk.Box):
 
         chapter = self.parser.chapters[self.current_chapter_idx]
         chapter_title = chapter.get("title", f"Chapter {self.current_chapter_idx + 1}")
-        self.title_widget.set_subtitle(f"{chapter_title} • {self.book.title}")
+        try:
+            root = self.get_root()
+            if root is not None and hasattr(root, "set_title"):
+                root.set_title(f"{self.book.title} - Aquile Reader")
+        except Exception:
+            pass
 
         # Viewport dimensions approximation (1024x768 default if unallocated)
         w = self.reading_canvas.get_width()
@@ -182,7 +149,7 @@ class ReaderView(Gtk.Box):
             chapter["clean_text"],
             viewport_width=vw,
             viewport_height=vh,
-            columns=self.settings.columns,
+            columns=min(2, self.settings.columns),
             font_size=self.settings.font_size,
             line_height=self.settings.line_height
         )
@@ -200,7 +167,7 @@ class ReaderView(Gtk.Box):
         left_buf = self.left_text_view.get_buffer()
         left_buf.set_text(page.left_column)
 
-        if self.settings.columns == 2:
+        if self.settings.columns == 2 or self.settings.columns >= 3:
             self.separator.set_visible(True)
             self.right_text_view.set_visible(True)
             right_buf = self.right_text_view.get_buffer()
@@ -209,24 +176,20 @@ class ReaderView(Gtk.Box):
             self.separator.set_visible(False)
             self.right_text_view.set_visible(False)
 
-        # Update footer progress
+        # Update Aquile status bar: Chapter » Section | page/total | %.
         total_p = max(1, self.paginator.page_count)
         cur_p = self.current_page_idx + 1
-        
+
         # Total progress across chapters
         total_chaps = len(self.parser.chapters)
         chap_frac = (self.current_chapter_idx + (cur_p / total_p)) / total_chaps if total_chaps else 0.0
         percentage = round(chap_frac * 100, 1)
 
-        self.page_label.set_text(f"Page {cur_p} of {total_p}  ({percentage}%)")
-        self.progress_bar.set_fraction(min(1.0, max(0.0, chap_frac)))
-
-        # Update button sensitivity
-        self.btn_prev.set_sensitive(self.current_chapter_idx > 0 or self.current_page_idx > 0)
-        self.btn_next.set_sensitive(
-            self.current_chapter_idx < len(self.parser.chapters) - 1 or
-            self.current_page_idx < self.paginator.page_count - 1
-        )
+        chapter = self.parser.chapters[self.current_chapter_idx]
+        chapter_title = chapter.get("title", f"Chapter {self.current_chapter_idx + 1}")
+        self.status_bar.set_location(chapter_title, f"Page {cur_p}")
+        self.status_bar.set_page(cur_p, total_p)
+        self.status_bar.set_percent(percentage)
 
     def next_page(self):
         if not self.paginator:
@@ -294,13 +257,33 @@ class ReaderView(Gtk.Box):
         self.progress_repo.save(prog)
         self.book_repo.update_last_read(self.book.id)
 
+    # Maps every supported page-theme key (legacy + Aquile B0 set) to the
+    # CSS classes in style.css. Unknown keys fall back to sepia-cream.
+    PAGE_THEME_CLASSES = {
+        "light": ("aquile-theme-light", "page-theme-white"),
+        "white": ("aquile-theme-light", "page-theme-white"),
+        "dark": ("aquile-theme-dark", "page-theme-night"),
+        "night": ("aquile-theme-dark", "page-theme-night"),
+        "sepia": ("aquile-theme-sepia", "page-theme-sepia"),
+        "silver": ("aquile-theme-sepia", "page-theme-silver"),
+        "solarized": ("aquile-theme-sepia", "page-theme-solarized"),
+        "custom": ("aquile-theme-sepia", "page-theme-sepia"),
+    }
+
     def _apply_theme(self):
         root = self.get_root()
         if not root:
             return
-        for theme_class in ["aquile-theme-light", "aquile-theme-dark", "aquile-theme-sepia"]:
+        known = ["aquile-theme-light", "aquile-theme-dark", "aquile-theme-sepia",
+                 "page-theme-white", "page-theme-silver", "page-theme-sepia",
+                 "page-theme-night", "page-theme-solarized"]
+        for theme_class in known:
             root.remove_css_class(theme_class)
-        root.add_css_class(f"aquile-theme-{self.settings.theme}")
+        for theme_class in self.PAGE_THEME_CLASSES.get(self.settings.theme, ("aquile-theme-sepia", "page-theme-sepia")):
+            root.add_css_class(theme_class)
+        margin_px = int(8 + (getattr(self.settings, "margin_percent", 5) or 5) * 6)
+        self.reading_canvas.set_margin_start(margin_px)
+        self.reading_canvas.set_margin_end(margin_px)
 
     def _on_settings_clicked(self, button):
         dialog = SettingsDialog(
@@ -377,6 +360,25 @@ class ReaderView(Gtk.Box):
             from ..reader.dictionary import DictionaryService
             dialog = DictionaryDialog(self.get_root(), DictionaryService())
             dialog.present()
+        except Exception:
+            pass
+
+    def _on_search_clicked(self, button):
+        # In-book search is not implemented yet; keep the toolbar affordance
+        # visible per B0 without side effects.
+        return
+
+    def _on_fullscreen_clicked(self, button):
+        try:
+            root = self.get_root()
+            if root is None:
+                return
+            if getattr(self, "_fullscreen", False):
+                root.unfullscreen()
+                self._fullscreen = False
+            else:
+                root.fullscreen()
+                self._fullscreen = True
         except Exception:
             pass
 

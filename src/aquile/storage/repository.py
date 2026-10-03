@@ -11,6 +11,23 @@ from ..domain.models import (
 )
 from .database import Database
 
+
+def _book_from_row(row) -> Book:
+    """Map a books row to a Book, coercing is_favorite to bool (v3)."""
+    data = dict(row)
+    if "is_favorite" in data:
+        try:
+            data["is_favorite"] = bool(int(data["is_favorite"]))
+        except (TypeError, ValueError):
+            data["is_favorite"] = bool(data["is_favorite"])
+    else:
+        data["is_favorite"] = False
+    # Ignore any unknown columns defensively.
+    known = set(Book.__dataclass_fields__.keys())
+    filtered = {k: v for k, v in data.items() if k in known}
+    return Book(**filtered)
+
+
 class BookRepository:
     def __init__(self, db: Database):
         self.db = db
@@ -20,12 +37,13 @@ class BookRepository:
             book.file_path = f"/books/{book.id}"
         with self.db.get_connection() as conn:
             conn.execute("""
-                INSERT OR REPLACE INTO books 
-                (id, title, author, file_path, file_format, cover_path, total_chapters, file_size_bytes, added_at, last_read_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO books
+                (id, title, author, file_path, file_format, cover_path, total_chapters, file_size_bytes, added_at, last_read_at, is_favorite)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 book.id, book.title, book.author, book.file_path, book.file_format,
-                book.cover_path, book.total_chapters, book.file_size_bytes, book.added_at, book.last_read_at
+                book.cover_path, book.total_chapters, book.file_size_bytes, book.added_at, book.last_read_at,
+                1 if getattr(book, "is_favorite", False) else 0
             ))
             conn.commit()
         return book
@@ -35,7 +53,7 @@ class BookRepository:
             cursor = conn.execute("SELECT * FROM books WHERE id = ?", (book_id,))
             row = cursor.fetchone()
             if row:
-                return Book(**dict(row))
+                return _book_from_row(row)
         return None
 
     def get_by_path(self, file_path: str) -> Optional[Book]:
@@ -43,13 +61,13 @@ class BookRepository:
             cursor = conn.execute("SELECT * FROM books WHERE file_path = ?", (file_path,))
             row = cursor.fetchone()
             if row:
-                return Book(**dict(row))
+                return _book_from_row(row)
         return None
 
     def list_all(self) -> List[Book]:
         with self.db.get_connection() as conn:
             cursor = conn.execute("SELECT * FROM books ORDER BY added_at DESC")
-            return [Book(**dict(r)) for r in cursor.fetchall()]
+            return [_book_from_row(r) for r in cursor.fetchall()]
 
     def delete(self, book_id: str) -> bool:
         with self.db.get_connection() as conn:
@@ -61,6 +79,14 @@ class BookRepository:
         ts = timestamp or time.time()
         with self.db.get_connection() as conn:
             conn.execute("UPDATE books SET last_read_at = ? WHERE id = ?", (ts, book_id))
+            conn.commit()
+
+    def set_favorite(self, book_id: str, value: bool) -> None:
+        with self.db.get_connection() as conn:
+            conn.execute(
+                "UPDATE books SET is_favorite = ? WHERE id = ?",
+                (1 if value else 0, book_id),
+            )
             conn.commit()
 
 

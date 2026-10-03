@@ -107,3 +107,123 @@
     opacity: 0.6;
     margin: 48px;
 }
+
+/* Aquile visual theme (B0 clean-room re-implementation, UI_RESEARCH sections 1, 6, 8) */
+
+:root {
+    --aquile-accent: #009688;
+}
+
+@define-color aquile_accent #009688;
+@define-color aquile_rail_bg #3A3A3A;
+@define-color aquile_collections_bg #3A3F4B;
+@define-color aquile_cream #F5EEDC;
+
+/* Left icon rail */
+.aquile-rail {
+    background-color: #3A3A3A;
+    padding: 6px;
+}
+
+.aquile-rail button {
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.rail-active {
+    background-color: #009688;
+    border-radius: 8px;
+    color: white;
+}
+
+/* Library cover cards */
+.cover-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px alpha(black, 0.35);
+}
+
+.library-cream {
+    background-color: #F5EEDC;
+}
+
+/* Dark reader chrome */
+.reader-toolbar {
+    background-color: #3A3A3A;
+    color: white;
+}
+
+.reader-toolbar image {
+    color: white;
+}
+
+.reader-toolbar button {
+    color: white;
+}
+
+.reader-statusbar {
+    padding: 4px 12px;
+    font-size: 0.85em;
+}
+
+/* Statistics tile grid (B0 shot 9) */
+.stat-tile {
+    background-color: #2b2f38;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 4px;
+}
+
+.stat-tile .stat-label {
+    color: white;
+    font-size: 0.8em;
+}
+
+.stat-tile .stat-value {
+    color: #009688;
+    font-size: 1.6em;
+    font-weight: 700;
+}
+
+/* Collections groups */
+.collections-group {
+    background-color: #3A3F4B;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 8px;
+}
+
+.collections-group .group-title {
+    color: white;
+    font-weight: 700;
+}
+
+.collections-group .group-subtitle {
+    color: alpha(white, 0.7);
+    font-size: 0.85em;
+}
+
+/* Reader page themes */
+.page-theme-white {
+    background-color: #ffffff;
+    color: #242424;
+}
+
+.page-theme-silver {
+    background-color: #c0c0c0;
+    color: #222222;
+}
+
+.page-theme-sepia {
+    background-color: #F5EEDC;
+    color: #433422;
+}
+
+.page-theme-night {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+.page-theme-solarized {
+    background-color: #fdf6e3;
+    color: #657b83;
+}

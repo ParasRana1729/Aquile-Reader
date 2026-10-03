@@ -20,6 +20,7 @@ class Book:
     file_size_bytes: int = 0
     added_at: float = field(default_factory=time.time)
     last_read_at: Optional[float] = None
+    is_favorite: bool = False
 
 @dataclass
 class ReadingProgress:

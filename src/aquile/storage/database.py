@@ -11,7 +11,7 @@ from typing import Optional, Generator
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 def get_default_db_path() -> str:
     xdg_data = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
@@ -48,6 +48,9 @@ class Database:
             if version < 2:
                 logger.info("Migrating database from version %d to %d", version, CURRENT_SCHEMA_VERSION)
                 self._migrate_to_v2(conn)
+            if version < 3:
+                logger.info("Migrating database from version %d to %d", version, CURRENT_SCHEMA_VERSION)
+                self._migrate_to_v3(conn)
             conn.commit()
 
     def _migrate_to_v1(self, conn: sqlite3.Connection):
@@ -135,4 +138,13 @@ class Database:
 
             PRAGMA user_version = 2;
         """)
+
+    def _migrate_to_v3(self, conn: sqlite3.Connection):
+        logger.info("Migrating database to schema version 3 (book favorites)")
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(books);")
+        columns = {row[1] for row in cursor.fetchall()}
+        if "is_favorite" not in columns:
+            conn.execute("ALTER TABLE books ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
+        conn.execute("PRAGMA user_version = 3;")
 

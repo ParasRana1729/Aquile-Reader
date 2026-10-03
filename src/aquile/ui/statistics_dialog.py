@@ -130,6 +130,17 @@ class StatisticsDialog(Adw.Window):
         self.header = Adw.HeaderBar()
         content_box.append(self.header)
 
+        # Chart icon + title affordance (B0 shot 9 header)
+        self.header_icon = Gtk.Image.new_from_icon_name("view-statistics-symbolic")
+        self.header_icon.set_tooltip_text("Statistics")
+        self.header.pack_start(self.header_icon)
+
+        # Refresh icon button (B0 shot 9)
+        self.refresh_button = Gtk.Button(icon_name="view-refresh-symbolic")
+        self.refresh_button.set_tooltip_text("Refresh statistics")
+        self.refresh_button.connect("clicked", lambda _b: self.refresh())
+        self.header.pack_end(self.refresh_button)
+
         # Main ViewStack
         self.view_stack = Adw.ViewStack()
         self.view_stack.set_vexpand(True)
@@ -149,9 +160,46 @@ class StatisticsDialog(Adw.Window):
         self.insights_page = self._build_insights_tab()
         self.view_stack.add_titled(self.insights_page, "insights", "Book Insights")
 
-    def _build_overview_tab(self) -> Adw.PreferencesPage:
-        """Construct the Library Overview tab page."""
+    # B0 shot 9 tile labels (UI_RESEARCH section 8), in display order.
+    TILE_LABELS = (
+        "Number of books in library",
+        "Number of books read",
+        "Total reading hours",
+        "Number of pages flipped",
+        "Avg. reading hours per day",
+        "Avg. reading time (sec) per page",
+        "Reading speed (words per minute)",
+        "Avg. number of pages flipped per hour",
+    )
+    WORDS_PER_PAGE = 250
+
+    def _build_overview_tab(self) -> Gtk.Widget:
+        """Construct the Library Overview tab page (tile grid + detail rows)."""
         page = Adw.PreferencesPage()
+
+        # Tile grid group (B0 shot 9: 3-column tile grid)
+        group_tiles = Adw.PreferencesGroup(title="Statistics")
+        page.add(group_tiles)
+
+        self.tile_grid = Gtk.Grid(column_spacing=8, row_spacing=8)
+        self.tile_grid.add_css_class("statistics-tiles")
+        self.stat_tiles: Dict[str, Gtk.Label] = {}
+        for idx, label in enumerate(self.TILE_LABELS):
+            tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            tile.add_css_class("stat-tile")
+            tile.set_hexpand(True)
+            name_label = Gtk.Label(label=label)
+            name_label.add_css_class("stat-label")
+            name_label.set_wrap(True)
+            name_label.set_halign(Gtk.Align.CENTER)
+            value_label = Gtk.Label(label="0")
+            value_label.add_css_class("stat-value")
+            value_label.set_halign(Gtk.Align.CENTER)
+            tile.append(name_label)
+            tile.append(value_label)
+            self.tile_grid.attach(tile, idx % 3, idx // 3, 1, 1)
+            self.stat_tiles[label] = value_label
+        group_tiles.add(self.tile_grid)
 
         # Reading Time and Speed Group
         group_time = Adw.PreferencesGroup(title="Reading Time and Speed")
@@ -186,7 +234,29 @@ class StatisticsDialog(Adw.Window):
         self.group_formats = Adw.PreferencesGroup(title="Format Distribution")
         page.add(self.group_formats)
 
-        return page
+        # Bottom action bar: Refresh + Close (B0 shot 9, bottom-right)
+        wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_vexpand(True)
+        scrolled.set_child(page)
+        wrapper.append(scrolled)
+
+        action_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        action_bar.set_halign(Gtk.Align.END)
+        action_bar.set_margin_start(16)
+        action_bar.set_margin_end(16)
+        action_bar.set_margin_top(8)
+        action_bar.set_margin_bottom(12)
+        btn_refresh = Gtk.Button(icon_name="view-refresh-symbolic", label="Refresh")
+        btn_refresh.connect("clicked", lambda _b: self.refresh())
+        btn_close = Gtk.Button(label="Close")
+        btn_close.connect("clicked", lambda _b: self.close())
+        action_bar.append(btn_refresh)
+        action_bar.append(btn_close)
+        wrapper.append(action_bar)
+        self.overview_action_bar = action_bar
+
+        return wrapper
 
     def _build_insights_tab(self) -> Adw.PreferencesPage:
         """Construct the Book Insights tab page."""
@@ -286,6 +356,44 @@ class StatisticsDialog(Adw.Window):
             self.book_combo_row.set_model(model)
             self.book_combo_row.set_sensitive(False)
             self._clear_book_insights()
+
+        # 3. Update B0 tile grid
+        self._update_stat_tiles()
+
+    def _compute_tile_values(self) -> Dict[str, str]:
+        """Derive the 8 B0 tile strings from the loaded library statistics."""
+        import time as _time
+
+        stats = self.library_stats
+        pages = int(stats.total_words_read // self.WORDS_PER_PAGE)
+        hours = stats.total_reading_seconds / 3600.0
+        if self.all_books:
+            oldest = min((getattr(b, "added_at", 0.0) or 0.0) for b in self.all_books)
+            days = max((_time.time() - oldest) / 86400.0, 1.0) if oldest > 0 else 1.0
+        else:
+            days = 1.0
+        avg_hrs_day = hours / days
+        avg_sec_page = (stats.active_reading_seconds / pages) if pages > 0 else 0.0
+        pages_per_hour = (pages / hours) if hours > 0 else 0.0
+        return {
+            "Number of books in library": str(stats.total_books),
+            "Number of books read": str(stats.books_completed),
+            "Total reading hours": f"{hours:.1f}",
+            "Number of pages flipped": f"{pages:,}",
+            "Avg. reading hours per day": f"{avg_hrs_day:.2f}",
+            "Avg. reading time (sec) per page": f"{avg_sec_page:.1f}",
+            "Reading speed (words per minute)": f"{stats.average_wpm:.0f}",
+            "Avg. number of pages flipped per hour": f"{pages_per_hour:.1f}",
+        }
+
+    def _update_stat_tiles(self) -> None:
+        """Push current metric values into the tile grid labels."""
+        tiles = getattr(self, "stat_tiles", None)
+        if not tiles:
+            return
+        for label, value in self._compute_tile_values().items():
+            if label in tiles:
+                tiles[label].set_text(value)
 
     def _on_book_selection_changed(self, combo: Adw.ComboRow, _pspec) -> None:
         """Handler for book dropdown selection changed."""

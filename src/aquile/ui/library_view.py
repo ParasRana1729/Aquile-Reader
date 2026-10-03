@@ -170,6 +170,8 @@ class LibraryView(Gtk.Box):
 
     def _create_book_row(self, book: Book) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow()
+        row.set_activatable(True)
+        row.connect("activate", lambda r, bk=book: self._on_show_details(bk))
         row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
         row_box.set_margin_start(16)
         row_box.set_margin_end(16)
@@ -199,6 +201,13 @@ class LibraryView(Gtk.Box):
         lbl_sub.set_xalign(0)
         lbl_sub.add_css_class("book-author")
         info_box.append(lbl_sub)
+
+        # Favourite toggle (starred = B0 Favourites filter)
+        fav_icon = "starred-symbolic" if getattr(book, "is_favorite", False) else "non-starred-symbolic"
+        btn_fav = Gtk.Button(icon_name=fav_icon)
+        btn_fav.set_tooltip_text("Toggle Favourite")
+        btn_fav.connect("clicked", lambda b, bid=book.id: self._on_toggle_favorite(bid))
+        row_box.append(btn_fav)
 
         # Reading Insights Button (FR-15)
         btn_stat = Gtk.Button(icon_name="utilities-system-monitor-symbolic")
@@ -327,6 +336,34 @@ class LibraryView(Gtk.Box):
             dialog.present()
         except Exception:
             pass
+
+    def _on_toggle_favorite(self, book_id: str):
+        try:
+            book = self.book_repo.get_by_id(book_id)
+            if book is None:
+                return
+            self.book_repo.set_favorite(book_id, not getattr(book, "is_favorite", False))
+        except Exception:
+            pass
+        self.refresh_library(self.search_entry.get_text())
+
+    def _on_show_details(self, book: Book):
+        try:
+            from .book_details import BookDetailsPane
+            dialog = Adw.Window(transient_for=self.get_root(), modal=True,
+                                title=f"{book.title} — Details")
+            dialog.set_default_size(480, 640)
+            progress = self.progress_repo.get(book.id)
+            prog = {"percentage": progress.percentage if progress else 0.0}
+            pane = BookDetailsPane()
+            pane.bind(book, prog,
+                      on_open=lambda bk: (dialog.close(), self.on_open_book(bk)),
+                      on_close=lambda: dialog.close(),
+                      book_repo=self.book_repo)
+            dialog.set_content(pane)
+            dialog.present()
+        except Exception:
+            self.on_open_book(book)
 
     def _on_statistics_clicked(self, initial_book_id: Optional[str] = None):
         if self.on_show_statistics:

@@ -35,13 +35,13 @@ class TestStatisticsStorage(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_fresh_database_initialization_to_v2(self):
-        """Verify that a brand new database initializes directly to schema v2 with WAL mode."""
+        """Verify that a brand new database initializes directly to the current schema with WAL mode."""
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("PRAGMA user_version;")
             version = cursor.fetchone()[0]
-            self.assertEqual(version, 2)
-            self.assertEqual(CURRENT_SCHEMA_VERSION, 2)
+            self.assertEqual(version, CURRENT_SCHEMA_VERSION)
+            self.assertEqual(CURRENT_SCHEMA_VERSION, 3)
 
             cursor.execute("PRAGMA journal_mode;")
             journal_mode = cursor.fetchone()[0].lower()
@@ -139,13 +139,13 @@ class TestStatisticsStorage(unittest.TestCase):
         conn.commit()
         conn.close()
 
-        # Instantiate Database manager on legacy file — triggers migration to v2
+        # Instantiate Database manager on legacy file — triggers migration to current version
         legacy_db = Database(migration_db_path)
 
         with legacy_db.get_connection() as c:
             cur = c.cursor()
             cur.execute("PRAGMA user_version;")
-            self.assertEqual(cur.fetchone()[0], 2)
+            self.assertEqual(cur.fetchone()[0], CURRENT_SCHEMA_VERSION)
 
             # Verify tables exist
             cur.execute("SELECT name FROM sqlite_master WHERE type='table';")

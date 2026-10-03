@@ -85,16 +85,16 @@ class AquileReaderApp(Adw.Application):
                 break
 
     def _create_main_window(self):
+        from .ui.aquile_shell import AquileShell
+        from .ui.home_view import HomeView
+        from .ui.collections_view import CollectionsView
+
         self.window = Adw.ApplicationWindow(application=self)
         self.window.set_title("Aquile Reader")
-        self.window.set_default_size(1180, 780)
+        self.window.set_default_size(1280, 800)
 
         # Connect orderly close persistence
         self.window.connect("close-request", self._on_window_close)
-
-        self.nav_stack = Gtk.Stack()
-        self.nav_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
-        self.window.set_content(self.nav_stack)
 
         self.library_view = LibraryView(
             self.book_repo, self.progress_repo, self.ann_repo,
@@ -103,8 +103,76 @@ class AquileReaderApp(Adw.Application):
             settings_repo=self.settings_repo,
             on_show_statistics=self.show_statistics
         )
-        self.nav_stack.add_named(self.library_view, "library")
-        self.nav_stack.set_visible_child_name("library")
+        self.home_view = HomeView(
+            self.book_repo, self.progress_repo,
+            on_open_book=self.open_book,
+            on_open_library=lambda: self.shell.set_page("library"),
+            on_see_more=lambda: self.shell.set_page("library"),
+        )
+        self.collections_view = CollectionsView(
+            self.book_repo, self.ann_repo, self.progress_repo,
+            on_jump_to_book=lambda book, ann=None: self.open_book(book),
+        )
+
+        self.shell = AquileShell(on_navigate=self._on_shell_navigate)
+        self.shell.add_page("home", self.home_view)
+        self.shell.add_page("library", self.library_view)
+        self.shell.add_page("collections", self.collections_view)
+        # Keep the historical nav_stack contract: the shell owns the stack.
+        self.nav_stack = self.shell.stack
+        self.window.set_content(self.shell)
+        self.shell.set_page("home")
+
+    def _on_shell_navigate(self, page: str):
+        if page == "collections":
+            try:
+                self.collections_view.refresh()
+            except Exception:
+                pass
+        elif page == "library":
+            try:
+                self.library_view.refresh_library()
+            except Exception:
+                pass
+        elif page == "home":
+            try:
+                self.home_view.refresh()
+            except Exception:
+                pass
+        elif page == "catalogs":
+            self._open_catalogs()
+        elif page == "statistics":
+            self.show_statistics()
+            self._revert_rail()
+        elif page == "settings":
+            self._open_settings()
+
+    def _revert_rail(self, page: str = "home"):
+        try:
+            self.shell.set_page(page)
+        except Exception:
+            pass
+
+    def _open_catalogs(self):
+        try:
+            from .ui.catalog_dialog import CatalogDialog
+            from .catalog.catalog_manager import CatalogManager
+            dialog = CatalogDialog(self.window, CatalogManager(), self.library_view.import_file)
+            dialog.present()
+        except Exception:
+            pass
+        self._revert_rail()
+
+    def _open_settings(self):
+        try:
+            from .ui.settings_dialog import SettingsDialog
+            settings = self.settings_repo.load()
+            dialog = SettingsDialog(parent_window=self.window, settings=settings,
+                                    settings_repo=self.settings_repo)
+            dialog.present()
+        except Exception:
+            pass
+        self._revert_rail()
 
     def show_statistics(self, book_id: Optional[str] = None):
         settings = self.settings_repo.load() if self.settings_repo else None
@@ -169,8 +237,10 @@ class AquileReaderApp(Adw.Application):
 
         self._start_reading_session(book)
 
-        self.nav_stack.add_named(self.current_reader_view, "reader")
-        self.nav_stack.set_visible_child_name("reader")
+        self.shell.add_page("reader", self.current_reader_view)
+        self.shell.set_page("reader")
+        # B0 reader is full-window chrome: hide the icon rail while reading.
+        self.shell.rail.set_visible(False)
 
     def _start_reading_session(self, book: Book):
         fmt = (book.file_format or "epub").lower().strip()
@@ -214,11 +284,15 @@ class AquileReaderApp(Adw.Application):
         self._flush_active_session()
         if self.current_reader_view:
             self.current_reader_view.cleanup()
-            self.nav_stack.remove(self.current_reader_view)
+            try:
+                self.nav_stack.remove(self.current_reader_view)
+            except Exception:
+                pass
             self.current_reader_view = None
 
+        self.shell.rail.set_visible(True)
         self.library_view.refresh_library()
-        self.nav_stack.set_visible_child_name("library")
+        self.shell.set_page("library")
 
     def _on_window_close(self, window) -> bool:
         self._flush_active_session()
