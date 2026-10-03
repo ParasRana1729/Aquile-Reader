@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Aquile Reader
+Comment=Modern, customizable eBook reader with two-column layout
+Exec=python3 /home/paras/Documents/Projects/Aquile-Reader/run_aquile.py %F
+Icon=book-open-symbolic
+Terminal=false
+Type=Application
+Categories=Office;Viewer;Literature;
+MimeType=application/epub+zip;application/pdf;application/vnd.comicbook+zip;
+StartupNotify=true

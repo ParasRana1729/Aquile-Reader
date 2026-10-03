@@ -1,0 +1,90 @@
+{
+  "timestamp": "2026-10-03 06:39:20 UTC",
+  "total_duration_sec": 0.1012,
+  "peak_memory_mb": 679.83,
+  "all_passed": true,
+  "results": {
+    "epub_pagination": {
+      "status": "PASSED",
+      "duration_sec": 0.0019,
+      "data": [
+        {
+          "viewport": "1024x768",
+          "1_column_pages": 3,
+          "2_column_pages": 3,
+          "chars_per_line_1col": 104,
+          "chars_per_line_2col": 50
+        },
+        {
+          "viewport": "1366x768",
+          "1_column_pages": 2,
+          "2_column_pages": 2,
+          "chars_per_line_1col": 139,
+          "chars_per_line_2col": 68
+        },
+        {
+          "viewport": "1920x1080",
+          "1_column_pages": 1,
+          "2_column_pages": 1,
+          "chars_per_line_1col": 196,
+          "chars_per_line_2col": 96
+        }
+      ]
+    },
+    "annotation_durability": {
+      "status": "PASSED",
+      "duration_sec": 0.0022,
+      "data": {
+        "anchor_status": "Passed (Zero drift across reflow)",
+        "cfi": "epubcfi(/6/2[chap1]!/4/2/1:70,142)",
+        "wal_durability": "Passed (WAL atomic commit + rollback confirmed)"
+      }
+    },
+    "fixed_layout": {
+      "status": "PASSED",
+      "duration_sec": 0.0004,
+      "data": {
+        "cbz_pages": 3,
+        "cbz_ltr_spreads": [
+          [
+            "001_cover.png"
+          ],
+          [
+            "002_page1.png",
+            "003_page2.png"
+          ]
+        ],
+        "cbz_rtl_spreads": [
+          [
+            "001_cover.png"
+          ],
+          [
+            "003_page2.png",
+            "002_page1.png"
+          ]
+        ],
+        "pdf_pages": 2
+      }
+    },
+    "security_sandboxing": {
+      "status": "PASSED",
+      "duration_sec": 0.0005,
+      "data": {
+        "traversal_test": "Passed (Malicious path traversal detected in archive: ../../../evil.txt)",
+        "corrupt_archive_test": "Passed (File is not a valid zip container: malformed-archive.epub)",
+        "valid_archive_entries": 9
+      }
+    },
+    "gtk_accessibility": {
+      "status": "PASSED",
+      "duration_sec": 0.0962,
+      "data": {
+        "gtk_version": "4.22.4",
+        "adw_available": true,
+        "accessible_role": "68",
+        "keyboard_focusable": true,
+        "status": "GTK4 / Libadwaita AT-SPI accessibility primitives verified"
+      }
+    }
+  }
+}
