@@ -401,13 +401,22 @@ class PdfDocumentEngine:
 
     def close(self):
         """Release underlying PopplerDocument resources."""
-        with self._lock:
-            if self._doc is not None and self._bridge.available and self._bridge.gobject:
-                try:
-                    self._bridge.gobject.g_object_unref(self._doc)
-                except Exception:
-                    pass
-                self._doc = None
+        lock = getattr(self, "_lock", None)
+        if lock is not None:
+            with lock:
+                self._release_doc()
+        else:
+            self._release_doc()
+
+    def _release_doc(self):
+        doc = getattr(self, "_doc", None)
+        bridge = getattr(self, "_bridge", None)
+        if doc is not None and bridge is not None and getattr(bridge, "available", False) and getattr(bridge, "gobject", None):
+            try:
+                bridge.gobject.g_object_unref(doc)
+            except Exception:
+                pass
+            self._doc = None
 
     def __del__(self):
         self.close()
