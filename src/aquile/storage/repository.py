@@ -3,8 +3,12 @@ Repositories for Book, Progress, Annotation, and Settings persistence.
 """
 
 import time
-from typing import List, Optional
-from ..domain.models import Book, ReadingProgress, Annotation, AppSettings
+from datetime import datetime, timezone
+from typing import List, Optional, Any
+from ..domain.models import (
+    Book, ReadingProgress, Annotation, AppSettings,
+    ReadingSession, BookStatistics, LibraryStatistics
+)
 from .database import Database
 
 class BookRepository:
@@ -12,6 +16,8 @@ class BookRepository:
         self.db = db
 
     def add(self, book: Book) -> Book:
+        if not book.file_path:
+            book.file_path = f"/books/{book.id}"
         with self.db.get_connection() as conn:
             conn.execute("""
                 INSERT OR REPLACE INTO books 
@@ -156,3 +162,250 @@ class SettingsRepository:
             ]
             conn.executemany("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", items)
             conn.commit()
+
+
+def _parse_datetime(val: Any) -> Optional[datetime]:
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val
+    if isinstance(val, (int, float)):
+        return datetime.fromtimestamp(val, tz=timezone.utc)
+    if isinstance(val, str):
+        try:
+            return datetime.fromisoformat(val)
+        except ValueError:
+            try:
+                return datetime.fromtimestamp(float(val), tz=timezone.utc)
+            except ValueError:
+                return None
+    return None
+
+
+class StatisticsRepository:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def record_session(self, session: ReadingSession) -> None:
+        started_str = (
+            session.started_at.isoformat()
+            if isinstance(session.started_at, datetime)
+            else str(session.started_at)
+        )
+        ended_str = (
+            session.ended_at.isoformat()
+            if isinstance(session.ended_at, datetime)
+            else (str(session.ended_at) if session.ended_at is not None else None)
+        )
+        with self.db.get_connection() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO reading_sessions
+                (id, book_id, started_at, ended_at, duration_seconds, active_seconds, idle_seconds, words_read, wpm)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session.id,
+                session.book_id,
+                started_str,
+                ended_str,
+                float(session.duration_seconds),
+                float(session.active_seconds),
+                float(session.idle_seconds),
+                int(session.words_read),
+                float(session.wpm),
+            ))
+
+            # Update aggregated reading_statistics cache for this book
+            cursor = conn.execute("""
+                SELECT
+                    COUNT(*) as total_sessions,
+                    COALESCE(SUM(duration_seconds), 0.0) as total_reading_seconds,
+                    COALESCE(SUM(active_seconds), 0.0) as active_reading_seconds,
+                    COALESCE(SUM(words_read), 0) as estimated_words_read,
+                    COALESCE(AVG(wpm), 0.0) as avg_session_wpm,
+                    MAX(started_at) as last_session_at
+                FROM reading_sessions
+                WHERE book_id = ?
+            """, (session.book_id,))
+            agg = cursor.fetchone()
+
+            total_sessions = int(agg["total_sessions"]) if agg else 0
+            total_duration = float(agg["total_reading_seconds"]) if agg else 0.0
+            active_duration = float(agg["active_reading_seconds"]) if agg else 0.0
+            total_words = int(agg["estimated_words_read"]) if agg else 0
+            last_sess = agg["last_session_at"] if agg else started_str
+
+            if active_duration > 0:
+                avg_wpm = round(total_words / (active_duration / 60.0), 2)
+            elif total_sessions > 0:
+                avg_wpm = float(agg["avg_session_wpm"])
+            else:
+                avg_wpm = 0.0
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            conn.execute("""
+                INSERT INTO reading_statistics
+                (book_id, total_reading_seconds, active_reading_seconds, total_sessions, estimated_words_read, average_wpm, last_session_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(book_id) DO UPDATE SET
+                    total_reading_seconds = excluded.total_reading_seconds,
+                    active_reading_seconds = excluded.active_reading_seconds,
+                    total_sessions = excluded.total_sessions,
+                    estimated_words_read = excluded.estimated_words_read,
+                    average_wpm = excluded.average_wpm,
+                    last_session_at = excluded.last_session_at,
+                    updated_at = excluded.updated_at
+            """, (
+                session.book_id,
+                total_duration,
+                active_duration,
+                total_sessions,
+                total_words,
+                avg_wpm,
+                last_sess,
+                now_iso,
+            ))
+            conn.commit()
+
+    def get_book_statistics(self, book_id: str) -> BookStatistics:
+        with self.db.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM reading_statistics WHERE book_id = ?", (book_id,))
+            row = cursor.fetchone()
+            if row:
+                last_session_at = _parse_datetime(row["last_session_at"])
+                return BookStatistics(
+                    book_id=row["book_id"],
+                    total_reading_seconds=float(row["total_reading_seconds"]),
+                    active_reading_seconds=float(row["active_reading_seconds"]),
+                    total_sessions=int(row["total_sessions"]),
+                    estimated_words_read=int(row["estimated_words_read"]),
+                    average_wpm=float(row["average_wpm"]),
+                    last_session_at=last_session_at,
+                )
+
+            # Fallback to computing directly from reading_sessions if reading_statistics not cached
+            cursor = conn.execute("""
+                SELECT
+                    COUNT(*) as total_sessions,
+                    COALESCE(SUM(duration_seconds), 0.0) as total_reading_seconds,
+                    COALESCE(SUM(active_seconds), 0.0) as active_reading_seconds,
+                    COALESCE(SUM(words_read), 0) as estimated_words_read,
+                    COALESCE(AVG(wpm), 0.0) as avg_session_wpm,
+                    MAX(started_at) as last_session_at
+                FROM reading_sessions
+                WHERE book_id = ?
+            """, (book_id,))
+            agg = cursor.fetchone()
+            if agg and agg["total_sessions"] > 0:
+                active_duration = float(agg["active_reading_seconds"])
+                total_words = int(agg["estimated_words_read"])
+                if active_duration > 0:
+                    avg_wpm = round(total_words / (active_duration / 60.0), 2)
+                else:
+                    avg_wpm = float(agg["avg_session_wpm"])
+                last_sess = _parse_datetime(agg["last_session_at"])
+                return BookStatistics(
+                    book_id=book_id,
+                    total_reading_seconds=float(agg["total_reading_seconds"]),
+                    active_reading_seconds=active_duration,
+                    total_sessions=int(agg["total_sessions"]),
+                    estimated_words_read=total_words,
+                    average_wpm=avg_wpm,
+                    last_session_at=last_sess,
+                )
+
+            return BookStatistics(
+                book_id=book_id,
+                total_reading_seconds=0.0,
+                active_reading_seconds=0.0,
+                total_sessions=0,
+                estimated_words_read=0,
+                average_wpm=0.0,
+                last_session_at=None,
+            )
+
+    def get_library_statistics(self) -> LibraryStatistics:
+        with self.db.get_connection() as conn:
+            # Total books and format counts
+            cursor = conn.execute("SELECT id, file_format FROM books")
+            books = cursor.fetchall()
+            total_books = len(books)
+
+            format_counts: dict[str, int] = {}
+            for b in books:
+                fmt = b["file_format"] or "unknown"
+                format_counts[fmt] = format_counts.get(fmt, 0) + 1
+
+            # In progress vs completed
+            cursor = conn.execute("""
+                SELECT b.id, COALESCE(p.percentage, 0.0) as pct, COUNT(s.id) as session_count
+                FROM books b
+                LEFT JOIN reading_progress p ON b.id = p.book_id
+                LEFT JOIN reading_sessions s ON b.id = s.book_id
+                GROUP BY b.id
+            """)
+            books_in_progress = 0
+            books_completed = 0
+            for row in cursor.fetchall():
+                pct = float(row["pct"])
+                sc = int(row["session_count"])
+                if pct >= 99.0:
+                    books_completed += 1
+                elif pct > 0.0 or sc > 0:
+                    books_in_progress += 1
+
+            # Aggregated session stats
+            cursor = conn.execute("""
+                SELECT
+                    COALESCE(SUM(duration_seconds), 0.0) as total_duration,
+                    COALESCE(SUM(active_seconds), 0.0) as total_active,
+                    COALESCE(SUM(words_read), 0) as total_words,
+                    COALESCE(AVG(wpm), 0.0) as avg_session_wpm,
+                    COUNT(*) as session_count
+                FROM reading_sessions
+            """)
+            sess_agg = cursor.fetchone()
+            total_reading_seconds = float(sess_agg["total_duration"]) if sess_agg else 0.0
+            active_reading_seconds = float(sess_agg["total_active"]) if sess_agg else 0.0
+            total_words_read = int(sess_agg["total_words"]) if sess_agg else 0
+
+            if active_reading_seconds > 0:
+                average_wpm = round(total_words_read / (active_reading_seconds / 60.0), 2)
+            elif sess_agg and sess_agg["session_count"] > 0:
+                average_wpm = float(sess_agg["avg_session_wpm"])
+            else:
+                average_wpm = 0.0
+
+            return LibraryStatistics(
+                total_books=total_books,
+                books_in_progress=books_in_progress,
+                books_completed=books_completed,
+                total_reading_seconds=total_reading_seconds,
+                active_reading_seconds=active_reading_seconds,
+                total_words_read=total_words_read,
+                average_wpm=average_wpm,
+                format_counts=format_counts,
+            )
+
+    def get_sessions_for_book(self, book_id: str, limit: int = 50) -> list[ReadingSession]:
+        with self.db.get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM reading_sessions WHERE book_id = ? ORDER BY started_at DESC LIMIT ?",
+                (book_id, limit)
+            )
+            sessions: list[ReadingSession] = []
+            for row in cursor.fetchall():
+                started_at = _parse_datetime(row["started_at"]) or datetime.now(timezone.utc)
+                ended_at = _parse_datetime(row["ended_at"])
+                sessions.append(ReadingSession(
+                    id=row["id"],
+                    book_id=row["book_id"],
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    duration_seconds=float(row["duration_seconds"]),
+                    active_seconds=float(row["active_seconds"]),
+                    idle_seconds=float(row["idle_seconds"]),
+                    words_read=int(row["words_read"]),
+                    wpm=float(row["wpm"]),
+                ))
+            return sessions
+

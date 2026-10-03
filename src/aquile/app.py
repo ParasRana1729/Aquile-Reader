@@ -10,6 +10,7 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk
 
+import uuid
 from .domain.models import Book, AppSettings
 from .storage.database import Database
 from .storage.repository import (
@@ -19,10 +20,11 @@ from .ui.library_view import LibraryView
 from .ui.reader_view import ReaderView
 
 class AquileReaderApp(Adw.Application):
-    def __init__(self, db_path=None):
+    def __init__(self, db_path=None, app_id=None):
+        chosen_id = app_id or f"org.antigravity.AquileReader_{uuid.uuid4().hex[:8]}"
         super().__init__(
-            application_id="org.antigravity.AquileReader",
-            flags=Gio.ApplicationFlags.HANDLES_OPEN
+            application_id=chosen_id,
+            flags=Gio.ApplicationFlags.HANDLES_OPEN | Gio.ApplicationFlags.NON_UNIQUE
         )
         self.db = Database(db_path)
         self.book_repo = BookRepository(self.db)

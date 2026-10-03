@@ -3,6 +3,7 @@ Domain models for Aquile Reader.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 import time
 import uuid
@@ -52,3 +53,37 @@ class AppSettings:
     columns: int = 2      # Aquile Reader default: 2 columns
     margin_percent: int = 5
     auto_save_interval: float = 5.0  # NFR-01: 5-second location persistence bound
+
+@dataclass(frozen=True)
+class ReadingSession:
+    id: str
+    book_id: str
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    duration_seconds: float = 0.0
+    active_seconds: float = 0.0
+    idle_seconds: float = 0.0
+    words_read: int = 0
+    wpm: float = 0.0
+
+@dataclass(frozen=True)
+class BookStatistics:
+    book_id: str
+    total_reading_seconds: float = 0.0
+    active_reading_seconds: float = 0.0
+    total_sessions: int = 0
+    estimated_words_read: int = 0
+    average_wpm: float = 0.0
+    last_session_at: Optional[datetime] = None
+
+@dataclass(frozen=True)
+class LibraryStatistics:
+    total_books: int = 0
+    books_in_progress: int = 0
+    books_completed: int = 0
+    total_reading_seconds: float = 0.0
+    active_reading_seconds: float = 0.0
+    total_words_read: int = 0
+    average_wpm: float = 0.0
+    format_counts: dict[str, int] = field(default_factory=dict)
+

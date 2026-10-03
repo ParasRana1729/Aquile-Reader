@@ -11,7 +11,7 @@ from typing import Optional, Generator
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 def get_default_db_path() -> str:
     xdg_data = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
@@ -43,11 +43,11 @@ class Database:
             cursor.execute("PRAGMA user_version;")
             version = cursor.fetchone()[0]
 
-            if version == 0:
+            if version < 1:
                 self._migrate_to_v1(conn)
-            elif version < CURRENT_SCHEMA_VERSION:
+            if version < 2:
                 logger.info("Migrating database from version %d to %d", version, CURRENT_SCHEMA_VERSION)
-                # Future version migrations
+                self._migrate_to_v2(conn)
             conn.commit()
 
     def _migrate_to_v1(self, conn: sqlite3.Connection):
@@ -98,3 +98,41 @@ class Database:
 
             PRAGMA user_version = 1;
         """)
+
+    def _migrate_to_v2(self, conn: sqlite3.Connection):
+        logger.info("Initializing schema version 2")
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS reading_sessions (
+                id TEXT PRIMARY KEY,
+                book_id TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                duration_seconds REAL NOT NULL DEFAULT 0.0,
+                active_seconds REAL NOT NULL DEFAULT 0.0,
+                idle_seconds REAL NOT NULL DEFAULT 0.0,
+                words_read INTEGER NOT NULL DEFAULT 0,
+                wpm REAL NOT NULL DEFAULT 0.0,
+                FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_reading_sessions_book_id ON reading_sessions (book_id);
+            CREATE INDEX IF NOT EXISTS idx_reading_sessions_started_at ON reading_sessions (started_at);
+            CREATE INDEX IF NOT EXISTS idx_reading_sessions_book_started ON reading_sessions (book_id, started_at DESC);
+
+            CREATE TABLE IF NOT EXISTS reading_statistics (
+                book_id TEXT PRIMARY KEY,
+                total_reading_seconds REAL NOT NULL DEFAULT 0.0,
+                active_reading_seconds REAL NOT NULL DEFAULT 0.0,
+                total_sessions INTEGER NOT NULL DEFAULT 0,
+                estimated_words_read INTEGER NOT NULL DEFAULT 0,
+                average_wpm REAL NOT NULL DEFAULT 0.0,
+                last_session_at TEXT,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_reading_statistics_book_id ON reading_statistics (book_id);
+
+            PRAGMA user_version = 2;
+        """)
+
