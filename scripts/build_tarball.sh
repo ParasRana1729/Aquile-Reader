@@ -16,7 +16,14 @@
 # else python py_compile), no /home absolute paths, no __pycache__.
 set -euo pipefail
 
-VERSION="0.1.0-preview"
+VERSION="0.2.0-preview"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version) VERSION="$2"; shift 2 ;;
+        -h|--help) echo "Usage: $0 [--version X]"; exit 0 ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
 PKG="aquile-reader-${VERSION}"
 APP_ID="org.antigravity.AquileReader"
 
