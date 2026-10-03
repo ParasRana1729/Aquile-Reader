@@ -63,6 +63,18 @@ class LibraryView(Gtk.Box):
         btn_stats.connect("clicked", lambda b: self._on_statistics_clicked())
         self.header.pack_start(btn_stats)
 
+        # Catalogs Button (FR-14, WP-13)
+        btn_catalog = Gtk.Button(icon_name="globe-symbolic")
+        btn_catalog.set_tooltip_text("Book Catalogs — OPDS discovery & download (FR-14)")
+        btn_catalog.connect("clicked", self._on_catalog_clicked)
+        self.header.pack_start(btn_catalog)
+
+        # Sync/Exchange Button (FR-17/FR-19, WP-14)
+        btn_exchange = Gtk.Button(icon_name="folder-saved-search-symbolic")
+        btn_exchange.set_tooltip_text("Sync & Migration — export/import reading data (FR-17/FR-19)")
+        btn_exchange.connect("clicked", self._on_exchange_clicked)
+        self.header.pack_start(btn_exchange)
+
         # Title
         self.title_widget = Adw.WindowTitle(title="Aquile Reader", subtitle="My Local Library")
         self.header.set_title_widget(self.title_widget)
@@ -298,6 +310,23 @@ class LibraryView(Gtk.Box):
         self.book_repo.add(book)
         self.refresh_library()
         self.on_open_book(book)
+
+    def _on_catalog_clicked(self, button):
+        try:
+            from .catalog_dialog import CatalogDialog
+            from ..catalog.catalog_manager import CatalogManager
+            dialog = CatalogDialog(self.get_root(), CatalogManager(), self.import_file)
+            dialog.present()
+        except Exception:
+            pass
+
+    def _on_exchange_clicked(self, button):
+        try:
+            from .exchange_dialog import ExchangeDialog
+            dialog = ExchangeDialog(self.get_root(), self.book_repo, self.progress_repo, self.ann_repo)
+            dialog.present()
+        except Exception:
+            pass
 
     def _on_statistics_clicked(self, initial_book_id: Optional[str] = None):
         if self.on_show_statistics:

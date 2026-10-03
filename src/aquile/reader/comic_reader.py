@@ -104,6 +104,12 @@ class ComicArchiveEngine:
             return True
         return False
 
+    # NFR-06 decompression guards (Tier 5 hardening; mirrors sync/exchange caps
+    # but sized for comics which legitimately contain hundreds of pages).
+    MAX_ARCHIVE_ENTRIES = 5000
+    MAX_ARCHIVE_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024  # 1 GiB total
+    MAX_ARCHIVE_ENTRY_BYTES = 200 * 1024 * 1024  # 200 MiB single entry
+
     def _open_archive(self):
         """Opens the archive file using zipfile (CBZ) or libarchive (CBR/fallback)."""
         if os.path.getsize(self.file_path) == 0:
@@ -116,10 +122,18 @@ class ComicArchiveEngine:
             try:
                 self._zip = zipfile.ZipFile(self.file_path, "r")
                 self.backend = "zip"
+                total_uncompressed = 0
                 for info in self._zip.infolist():
                     name = info.filename
                     if self._is_path_traversal(name):
                         raise ComicSecurityError(f"Path traversal detected in archive entry: {name}")
+                    if len(self._raw_entries) >= self.MAX_ARCHIVE_ENTRIES:
+                        raise CorruptComicError(f"Archive exceeds entry limit ({self.MAX_ARCHIVE_ENTRIES})")
+                    if info.file_size > self.MAX_ARCHIVE_ENTRY_BYTES:
+                        raise CorruptComicError(f"Archive entry too large: {name}")
+                    total_uncompressed += info.file_size
+                    if total_uncompressed > self.MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+                        raise CorruptComicError("Archive exceeds total uncompressed size limit")
                     self._raw_entries.append(name)
             except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
                 raise CorruptComicError(f"Corrupt or invalid zip archive: {e}") from e
@@ -163,6 +177,9 @@ class ComicArchiveEngine:
                     name = pathname.decode("utf-8", "replace")
                     if self._is_path_traversal(name):
                         raise ComicSecurityError(f"Path traversal detected in archive entry: {name}")
+                    if len(raw_entries) >= ComicArchiveEngine.MAX_ARCHIVE_ENTRIES:
+                        lib.archive_read_free(a)
+                        raise CorruptComicError("Archive exceeds entry limit")
                     raw_entries.append(name)
         finally:
             lib.archive_read_free(a)

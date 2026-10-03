@@ -45,11 +45,21 @@ mkdir -p \
 # --- payload ------------------------------------------------------------
 cp -r "$REPO_ROOT/src" "$PKG_DIR/usr/share/aquile-reader/src"
 cp "$REPO_ROOT/run_aquile.py" "$PKG_DIR/usr/share/aquile-reader/run_aquile.py"
+# Hygiene: never ship bytecode caches in the .deb (keeps package small and
+# avoids stale .pyc shadowing source on target machines).
+find "$PKG_DIR/usr/share/aquile-reader" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+find "$PKG_DIR/usr/share/aquile-reader" -type f -name '*.py[co]' -delete 2>/dev/null || true
 
 # Desktop entry: rewrite absolute Exec to the installed launcher path.
 sed 's|^Exec=.*|Exec=/usr/bin/aquile-reader %F|' \
     "$REPO_ROOT/data/org.antigravity.AquileReader.desktop" \
     > "$PKG_DIR/usr/share/applications/org.antigravity.AquileReader.desktop"
+# Harden staged entry: launcher must be visible (NoDisplay=false) and must
+# advertise every MIME type the package registers (EPUB, PDF, CBZ, CBR).
+DESKTOP_FILE="$PKG_DIR/usr/share/applications/org.antigravity.AquileReader.desktop"
+grep -q '^NoDisplay=' "$DESKTOP_FILE" || printf 'NoDisplay=false\n' >> "$DESKTOP_FILE"
+grep -q 'application/vnd.comicbook-rar' "$DESKTOP_FILE" \
+    || sed -i 's|^MimeType=.*|MimeType=application/epub+zip;application/pdf;application/vnd.comicbook+zip;application/vnd.comicbook-rar;|' "$DESKTOP_FILE"
 
 # MIME registration for supported formats (reader must not steal defaults:
 # package only registers, it sets no default handler).
@@ -103,6 +113,7 @@ Version: $VERSION
 Section: office
 Priority: optional
 Architecture: amd64
+Installed-Size: $INSTALLED_SIZE
 Depends: python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-poppler-0.18
 Maintainer: Aquile Reader Ubuntu Port Team
 Description: Modern, customizable eBook reader (Ubuntu port preview)
@@ -120,6 +131,14 @@ grep -q '^Exec=/usr/bin/aquile-reader' \
 grep -q 'MimeType=' \
     "$PKG_DIR/usr/share/applications/org.antigravity.AquileReader.desktop" \
     || { echo "FAIL: desktop MimeType missing" >&2; exit 1; }
+grep -q '^NoDisplay=false' \
+    "$PKG_DIR/usr/share/applications/org.antigravity.AquileReader.desktop" \
+    || { echo "FAIL: desktop NoDisplay=false missing" >&2; exit 1; }
+for mime in 'application/epub+zip' 'application/pdf'; do
+    grep -q "$mime" \
+        "$PKG_DIR/usr/share/applications/org.antigravity.AquileReader.desktop" \
+        || { echo "FAIL: desktop MimeType $mime missing" >&2; exit 1; }
+done
 
 for mime in 'application/epub+zip' 'application/pdf' 'application/vnd.comicbook+zip'; do
     grep -q "$mime" "$PKG_DIR/usr/share/mime/packages/aquile-reader.xml" \
@@ -141,7 +160,11 @@ case "$OUT_DIR" in
 esac
 mkdir -p "$ABS_OUT"
 DEB="$ABS_OUT/${PKG_NAME}_${VERSION}_amd64.deb"
-dpkg-deb --build "$PKG_DIR" "$DEB" >/dev/null
+if command -v fakeroot >/dev/null 2>&1; then
+    fakeroot dpkg-deb --build "$PKG_DIR" "$DEB" >/dev/null
+else
+    dpkg-deb --build "$PKG_DIR" "$DEB" >/dev/null
+fi
 echo "== package contents =="
 dpkg-deb -c "$DEB"
 echo "Built (UNSIGNED preview): $DEB"

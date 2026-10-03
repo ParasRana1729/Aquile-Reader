@@ -88,6 +88,18 @@ class ReaderView(Gtk.Box):
         btn_settings.connect("clicked", self._on_settings_clicked)
         self.header.pack_end(btn_settings)
 
+        # Read-aloud button (FR-12, WP-12)
+        btn_tts = Gtk.Button(icon_name="audio-speakers-symbolic")
+        btn_tts.set_tooltip_text("Read Aloud (FR-12)")
+        btn_tts.connect("clicked", self._on_tts_clicked)
+        self.header.pack_end(btn_tts)
+
+        # Dictionary button (FR-13, WP-12)
+        btn_dict = Gtk.Button(icon_name="accessories-dictionary-symbolic")
+        btn_dict.set_tooltip_text("Dictionary Lookup (FR-13)")
+        btn_dict.connect("clicked", self._on_dictionary_clicked)
+        self.header.pack_end(btn_dict)
+
         # 2. Reading Canvas (Two-Column & Single-Column Container)
         self.reading_canvas = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=24)
         self.reading_canvas.set_vexpand(True)
@@ -342,6 +354,31 @@ class ReaderView(Gtk.Box):
             on_save_callback=_on_save_annotation
         )
         dialog.present()
+
+    def _on_tts_clicked(self, button):
+        try:
+            from .tts_controls import TtsBar
+            from ..reader.tts_engine import TtsEngine
+            engine = TtsEngine()
+            bar = TtsBar(engine)
+            bar.bind_text(lambda: (self.paginator.get_page(self.current_page_idx).left_column if self.paginator else ""))
+            win = Adw.Window(transient_for=self.get_root(), modal=True, title="Read Aloud")
+            win.set_default_size(420, 160)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            box.append(bar)
+            win.set_content(box)
+            win.present()
+        except Exception:
+            pass
+
+    def _on_dictionary_clicked(self, button):
+        try:
+            from .dictionary_dialog import DictionaryDialog
+            from ..reader.dictionary import DictionaryService
+            dialog = DictionaryDialog(self.get_root(), DictionaryService())
+            dialog.present()
+        except Exception:
+            pass
 
     def _on_back_clicked(self, button):
         self.cleanup()
