@@ -19,8 +19,28 @@ from gi.repository import Gtk
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+#: Candidate directories holding the shipped ``*.svg`` glyphs, first hit wins:
+#: repo checkout, system install, /usr/local install, tarball/AppImage layout,
+#: plus $AQUILE_ICON_DIR override for tests and custom installs.
+_CANDIDATES = [
+    os.environ.get("AQUILE_ICON_DIR", ""),
+    os.path.normpath(os.path.join(_HERE, "..", "..", "..", "data", "icons")),
+    "/usr/share/aquile-reader/data/icons",
+    "/usr/local/share/aquile-reader/data/icons",
+    os.path.normpath(os.path.join(_HERE, "..", "..", "data", "icons")),
+]
+
+
+def find_icon_dir() -> str:
+    """Return the first candidate icon directory that exists."""
+    for candidate in _CANDIDATES:
+        if candidate and os.path.isdir(candidate):
+            return candidate
+    return _CANDIDATES[1]
+
+
 #: Absolute directory holding the shipped ``*.svg`` glyphs.
-ICON_DIR = os.path.normpath(os.path.join(_HERE, "..", "..", "..", "data", "icons"))
+ICON_DIR = find_icon_dir()
 
 #: Rail destinations in display order.
 RAIL_NAMES = ("home", "library", "collections", "catalogs", "statistics", "settings")
@@ -41,16 +61,16 @@ NAMES = {
     "add": "plus.svg",
     "star": "star.svg",
     "favorite": "star.svg",
-    # Reader placeholders (reuse shipped files so every name resolves).
-    "back": "home.svg",
-    "menu": "library.svg",
-    "toc": "collections.svg",
-    "bookmark": "star.svg",
-    "search": "globe.svg",
-    "read_aloud": "chart.svg",
-    "display_settings": "gear.svg",
-    "dictionary": "library.svg",
-    "fullscreen": "plus.svg",
+    # Reader toolbar glyphs (white strokes for the dark reader toolbar).
+    "back": "back.svg",
+    "menu": "menu.svg",
+    "toc": "toc.svg",
+    "bookmark": "bookmark.svg",
+    "search": "search.svg",
+    "read_aloud": "speaker.svg",
+    "display_settings": "textsize.svg",
+    "dictionary": "dictionary.svg",
+    "fullscreen": "fullscreen.svg",
 }
 
 

@@ -43,6 +43,8 @@ mkdir -p %{buildroot}/usr/bin \
 # install is needed.
 cp -r src %{buildroot}/usr/share/aquile-reader/src
 cp run_aquile.py %{buildroot}/usr/share/aquile-reader/run_aquile.py
+mkdir -p %{buildroot}/usr/share/aquile-reader/data
+cp -r data/icons %{buildroot}/usr/share/aquile-reader/data/icons
 # Hygiene: never ship bytecode caches (keeps the package small and avoids
 # stale .pyc shadowing source on target machines).
 find %{buildroot}/usr/share/aquile-reader -type d -name '__pycache__' \

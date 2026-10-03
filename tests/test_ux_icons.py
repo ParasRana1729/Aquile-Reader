@@ -162,7 +162,7 @@ class TestShellUsesLoader(unittest.TestCase):
                 self.assertIsInstance(child, Gtk.Image)
                 self.assertIsNotNone(child.get_paintable())
 
-    def test_home_add_button_uses_shipped_icon(self):
+    def test_home_add_button_uses_light_surface_icon(self):
         _require_gtk(self)
         from src.aquile.ui.home_view import HomeView
 
@@ -172,12 +172,7 @@ class TestShellUsesLoader(unittest.TestCase):
 
         home = _try_construct(HomeView, _Repos(), _Repos(),
                               lambda _b: None, lambda: None, lambda: None)
-        path = getattr(home.add_button, "_aquile_icon_path", None)
-        self.assertIsNotNone(path, "home add button has no shipped icon path")
-        self.assertTrue(os.path.isfile(path), f"home add button: {path}")
-        child = home.add_button.get_child()
-        self.assertIsInstance(child, Gtk.Image)
-        self.assertIsNotNone(child.get_paintable())
+        self.assertEqual(home.add_button.get_icon_name(), "list-add-symbolic")
 
 
 if __name__ == "__main__":

@@ -75,6 +75,8 @@ echo "runtime OK: $(wc -c < "$RUNTIME_BIN") bytes, $(file -b "$RUNTIME_BIN" | cu
 # --- 2. AppDir staging (from repo files only) -----------------------------
 echo "== staging AppDir =="
 cp -r "$REPO_ROOT/src" "$APPDIR/usr/share/aquile-reader/src"
+mkdir -p "$APPDIR/usr/share/aquile-reader/data"
+cp -r "$REPO_ROOT/data/icons" "$APPDIR/usr/share/aquile-reader/data/icons"
 cp "$REPO_ROOT/run_aquile.py" "$APPDIR/usr/share/aquile-reader/run_aquile.py"
 # Hygiene: never ship bytecode caches (stale .pyc could shadow source).
 find "$APPDIR/usr/share/aquile-reader" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true

@@ -227,16 +227,14 @@ class TestCoverUsage(unittest.TestCase):
             self.assertIsInstance(cover_widget, Gtk.Picture)
             self.assertEqual(cover_widget.get_size_request(), COVER_SIZE_LARGE)
 
-    def test_home_add_button_uses_shipped_icon(self):
+    def test_home_add_button_uses_light_surface_icon(self):
+        # White shipped glyphs are for dark chrome only; the light home
+        # header must use a theme icon so the + stays visible.
         _require_gtk(self)
         from src.aquile.ui.home_view import HomeView
-        from src.aquile.ui import icon_loader
         home = _try_construct(HomeView, _StubBookRepo([]), _StubProgressRepo(),
                               lambda _b: None, lambda: None, lambda: None)
-        expected = icon_loader.path_for("plus")
-        self.assertTrue(os.path.isfile(expected), f"missing: {expected}")
-        actual = getattr(home.add_button, "_aquile_icon_path", None)
-        self.assertEqual(actual, expected)
+        self.assertEqual(home.add_button.get_icon_name(), "list-add-symbolic")
 
 
 if __name__ == "__main__":

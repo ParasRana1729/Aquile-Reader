@@ -159,8 +159,13 @@ class ReaderToolbar(Gtk.Box):
     # -- construction helpers ------------------------------------------------
 
     def _make_button(self, name: str, icon: str, tooltip: str) -> Gtk.Button:
-        btn = Gtk.Button(icon_name=icon)
+        btn = Gtk.Button()
         btn.set_tooltip_text(tooltip)
+        try:
+            from .icon_loader import load as _load_icon
+            btn.set_child(_load_icon(name, 22))
+        except Exception:
+            btn.set_icon_name(icon)
         btn.connect("clicked", self._on_button_clicked, name)
         self.buttons[name] = btn
         return btn

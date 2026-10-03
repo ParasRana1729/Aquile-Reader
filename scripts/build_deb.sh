@@ -44,6 +44,8 @@ mkdir -p \
 
 # --- payload ------------------------------------------------------------
 cp -r "$REPO_ROOT/src" "$PKG_DIR/usr/share/aquile-reader/src"
+mkdir -p "$PKG_DIR/usr/share/aquile-reader/data"
+cp -r "$REPO_ROOT/data/icons" "$PKG_DIR/usr/share/aquile-reader/data/icons"
 cp "$REPO_ROOT/run_aquile.py" "$PKG_DIR/usr/share/aquile-reader/run_aquile.py"
 # Hygiene: never ship bytecode caches in the .deb (keeps package small and
 # avoids stale .pyc shadowing source on target machines).

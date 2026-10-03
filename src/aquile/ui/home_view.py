@@ -76,16 +76,8 @@ class HomeView(Gtk.Box):
         title.set_xalign(0.0)
         title.set_hexpand(True)
         header.append(title)
-        self.add_button = Gtk.Button()
+        self.add_button = Gtk.Button(icon_name="list-add-symbolic")
         self.add_button.set_tooltip_text("Add books (open library)")
-        try:
-            self.add_button.set_child(_load_icon("plus", 24))
-        except Exception:
-            pass
-        try:
-            self.add_button._aquile_icon_path = _icon_path_for("plus")  # noqa: SLF001
-        except Exception:
-            self.add_button._aquile_icon_path = None  # noqa: SLF001
         self.add_button.connect("clicked", self._on_open_library)
         header.append(self.add_button)
         self.append(header)

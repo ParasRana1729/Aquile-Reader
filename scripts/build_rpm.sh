@@ -141,6 +141,7 @@ mkdir -p "$TARBALL_DIR"
 cp -r "$REPO_ROOT/src" "$TARBALL_DIR/src"
 cp "$REPO_ROOT/run_aquile.py" "$TARBALL_DIR/run_aquile.py"
 mkdir -p "$TARBALL_DIR/data"
+cp -r "$REPO_ROOT/data/icons" "$TARBALL_DIR/data/icons"
 cp "$REPO_ROOT/data/org.antigravity.AquileReader.desktop" \
     "$TARBALL_DIR/data/org.antigravity.AquileReader.desktop"
 cp "$REPO_ROOT/LICENSE" "$TARBALL_DIR/LICENSE"

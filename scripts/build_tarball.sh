@@ -50,6 +50,8 @@ mkdir -p "${STAGE}/bin" \
 # App payload: entry point + full src tree (minus bytecode caches).
 cp "${REPO_ROOT}/run_aquile.py" "${STAGE}/share/aquile-reader/run_aquile.py"
 cp -r "${REPO_ROOT}/src" "${STAGE}/share/aquile-reader/src"
+mkdir -p "${STAGE}/share/aquile-reader/data"
+cp -r "${REPO_ROOT}/data/icons" "${STAGE}/share/aquile-reader/data/icons"
 find "${STAGE}" \( -name '__pycache__' -type d \) -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE}" -name '*.py[co]' -delete 2>/dev/null || true
 
