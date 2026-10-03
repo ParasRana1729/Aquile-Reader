@@ -99,12 +99,6 @@ class AquileReaderApp(Adw.Application):
         self.window = Adw.ApplicationWindow(application=self)
         self.window.set_title("Aquile Reader")
         self.window.set_default_size(1280, 800)
-        try:
-            from .ui.titlebar import AquileTitleBar, attach_titlebar
-            self.titlebar = AquileTitleBar(title="Aquile Reader")
-            attach_titlebar(self.window, self.titlebar)
-        except Exception:
-            self.titlebar = None
 
         # Connect orderly close persistence
         self.window.connect("close-request", self._on_window_close)
@@ -133,7 +127,15 @@ class AquileReaderApp(Adw.Application):
         self.shell.add_page("collections", self.collections_view)
         # Keep the historical nav_stack contract: the shell owns the stack.
         self.nav_stack = self.shell.stack
-        self.window.set_content(self.shell)
+        # B0-style slim title bar with real min/max/close (D2). NOTE: this is
+        # packed as content, NOT via set_titlebar(): libadwaita windows
+        # fatally abort (SIGABRT) on gtk_window_set_titlebar().
+        from .ui.titlebar import AquileTitleBar
+        self.titlebar = AquileTitleBar(title="Aquile Reader")
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        outer.append(self.titlebar)
+        outer.append(self.shell)
+        self.window.set_content(outer)
         self.shell.set_page("home")
         self._apply_saved_appearance()
         try:
@@ -197,7 +199,8 @@ class AquileReaderApp(Adw.Application):
             from .ui.settings_dialog import SettingsDialog
             settings = self.settings_repo.load()
             dialog = SettingsDialog(parent_window=self.window, settings=settings,
-                                    settings_repo=self.settings_repo)
+                                    settings_repo=self.settings_repo,
+                                    on_changed_callback=lambda s: self._apply_saved_appearance())
             dialog.present()
         except Exception:
             pass
@@ -232,7 +235,6 @@ class AquileReaderApp(Adw.Application):
             pass
         if self.current_reader_view:
             self.current_reader_view.cleanup()
-            self.nav_stack.remove(self.current_reader_view)
             self.current_reader_view = None
 
         fmt = (book.file_format or "").lower().strip()
@@ -321,9 +323,12 @@ class AquileReaderApp(Adw.Application):
         if self.current_reader_view:
             self.current_reader_view.cleanup()
             try:
-                self.nav_stack.remove(self.current_reader_view)
+                if self.current_reader_view.get_parent() == self.nav_stack:
+                    self.nav_stack.remove(self.current_reader_view)
             except Exception:
                 pass
+            if hasattr(self.shell, "_pages"):
+                self.shell._pages.pop("reader", None)
             self.current_reader_view = None
 
         self.shell.rail.set_visible(True)

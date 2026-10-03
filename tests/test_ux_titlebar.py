@@ -97,6 +97,19 @@ class TestAquileTitleBar(unittest.TestCase):
             except Exception:
                 pass
 
+    def test_attach_titlebar_refuses_adw_windows(self):
+        from gi.repository import Adw
+        bar = AquileTitleBar()
+        w1 = Adw.Window()
+        w2 = Adw.ApplicationWindow()
+        self.assertFalse(attach_titlebar(w1, bar))
+        self.assertFalse(attach_titlebar(w2, bar))
+
+        class CustomAdwWindow(Adw.ApplicationWindow):
+            pass
+
+        self.assertFalse(attach_titlebar(CustomAdwWindow(), bar))
+
 
 class TestTitleBarAppWiring(unittest.TestCase):
     """App wiring: window has titlebar; open_book/show_library update title."""
@@ -127,8 +140,14 @@ class TestTitleBarAppWiring(unittest.TestCase):
     def test_window_has_titlebar_with_controls(self):
         app = self._make_app()
         try:
-            bar = app.window.get_titlebar()
-            self.assertIsNotNone(bar, "main window must have a titlebar")
+            content = app.window.get_content()
+            self.assertIsNotNone(content, "main window must have content box")
+            bar = content.get_first_child()
+            self.assertIsInstance(bar, AquileTitleBar, "first content child must be AquileTitleBar")
+            self.assertIs(bar, app.titlebar, "first content child must match app.titlebar")
+            self.assertIsNot(app.window.get_titlebar(), app.titlebar)
+            self.assertNotIsInstance(app.window.get_titlebar(), AquileTitleBar)
+
             controls = _collect_window_controls(bar)
             sides = [c.get_side() for c in controls]
             self.assertIn(Gtk.PackType.START, sides)
@@ -153,11 +172,17 @@ class TestTitleBarAppWiring(unittest.TestCase):
             book = books[0]
             app.open_book(book)
             expected = f"{book.title} - Aquile Reader"
-            bar = app.window.get_titlebar()
-            self.assertIsNotNone(bar)
+
+            content = app.window.get_content()
+            bar = content.get_first_child()
+            self.assertIsInstance(bar, AquileTitleBar)
+            self.assertIs(bar, app.titlebar)
             self.assertEqual(bar.get_title(), expected)
+            self.assertEqual(app.titlebar.get_title(), expected)
+
             app.show_library()
-            self.assertEqual(app.window.get_titlebar().get_title(), "Aquile Reader")
+            self.assertEqual(bar.get_title(), "Aquile Reader")
+            self.assertEqual(app.titlebar.get_title(), "Aquile Reader")
         finally:
             if app.current_reader_view:
                 try:

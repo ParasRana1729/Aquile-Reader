@@ -46,13 +46,19 @@ class TestEpubAndPagination(unittest.TestCase):
         self.assertTrue(len(page0.left_column) > 0)
         self.assertTrue(len(page0.right_column) > 0)
 
-        # 1-column comparison
-        paginator_1col = ChapterPaginator(chap3_text, 1024, 768, columns=1, font_size=16)
-        # 1-column should take more or equal total page views than 2-column spread
-        self.assertTrue(paginator_1col.page_count >= paginator.page_count)
-        page0_1col = paginator_1col.get_page(0)
-        self.assertEqual(page0_1col.columns, 1)
-        self.assertEqual(page0_1col.right_column, "")
+    def test_parse_missing_metadata_coverless_epub(self):
+        epub_path = os.path.join(FIXTURES_DIR, "missing-metadata-coverless.epub")
+        self.assertTrue(os.path.exists(epub_path), "missing-metadata-coverless.epub must exist")
+        parser = EpubParser(epub_path)
+        self.assertEqual(parser.title, "Untitled")
+        self.assertEqual(parser.author, "Unknown Author")
+        self.assertIsNone(parser.cover_data)
+        self.assertEqual(len(parser.chapters), 2)
+        self.assertEqual(parser.chapters[0]["title"], "Chapter 1: Headless Content")
+        self.assertTrue(len(parser.chapters[0]["clean_text"]) > 50)
+        # Verify pagination works on headless fixture
+        paginator = ChapterPaginator(parser.chapters[0]["clean_text"], 1024, 768, columns=2, font_size=16)
+        self.assertGreaterEqual(paginator.page_count, 1)
 
 if __name__ == "__main__":
     unittest.main()

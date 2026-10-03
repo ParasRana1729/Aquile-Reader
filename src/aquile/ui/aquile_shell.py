@@ -114,7 +114,7 @@ class AquileShell(Gtk.Box):
         if name not in _RAIL_NAMES and name not in self.AUX_PAGES:
             raise KeyError(f"unknown shell page: {name!r}")
         old = self._pages.get(name)
-        if old is not None and old is not widget:
+        if old is not None and old is not widget and old.get_parent() is self.stack:
             self.stack.remove(old)
         self._pages[name] = widget
         if widget.get_parent() is not self.stack:

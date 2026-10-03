@@ -87,6 +87,15 @@ class AquileTitleBar(Gtk.Box):
 def attach_titlebar(window, titlebar) -> bool:
     """Attach titlebar to window via set_titlebar. Returns True on success."""
     try:
+        # gtk_window_set_titlebar() fatally aborts (SIGABRT) on
+        # Libadwaita windows (Adw.Window / Adw.ApplicationWindow).
+        gtype_name = getattr(getattr(window, "__gtype__", None), "name", "")
+        if (
+            gtype_name.startswith("Adw")
+            or "Adw" in getattr(type(window), "__module__", "")
+            or any("Adw" in getattr(cls, "__module__", "") for cls in type(window).__mro__)
+        ):
+            return False
         window.set_titlebar(titlebar)
         return True
     except Exception:

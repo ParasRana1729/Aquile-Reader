@@ -39,7 +39,7 @@ class SettingsDialog(Adw.PreferencesWindow):
         self.add(page)
 
         # 1. Appearance Group
-        appearance_group = Adw.PreferencesGroup(title="Appearance & Theme")
+        appearance_group = Adw.PreferencesGroup(title="Appearance &amp; Theme")
         page.add(appearance_group)
 
         # Theme Selector (shared WP-C vocabulary: white/silver/sepia/...).

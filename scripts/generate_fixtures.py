@@ -212,6 +212,121 @@ def generate_malformed_samples():
         
     return corrupt_path, traversal_path
 
+def generate_missing_metadata_coverless_epub():
+    """Generate an EPUB fixture lacking dc:title and dc:creator metadata, without cover."""
+    chapters = [
+        ("Chapter 1: Headless Content",
+         "<p>This fixture contains valid EPUB 3.0 structure and XHTML content but completely omits "
+         "the dc:title and dc:creator metadata elements from its OPF package document.</p>"
+         "<p>It verifies that Aquile Reader gracefully handles missing metadata by falling back "
+         "to filename-derived heuristics or default titles without throwing unhandled exceptions.</p>"),
+        ("Chapter 2: Coverless Verification",
+         "<p>This document also lacks any cover image declaration or cover metadata item in its manifest. "
+         "Aquile Reader must render an elegant fallback cover tile with the book title.</p>")
+    ]
+    filepath = os.path.join(FIXTURES_DIR, "missing-metadata-coverless.epub")
+    with zipfile.ZipFile(filepath, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        # mimetype must be uncompressed and first entry
+        z.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+
+        # META-INF/container.xml
+        container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+        z.writestr("META-INF/container.xml", container_xml)
+
+        manifest_items = [
+            '<item id="toc" href="toc.ncx" media-type="application/x-dtbncx+xml"/>',
+            '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
+            '<item id="style" href="style.css" media-type="text/css"/>'
+        ]
+        spine_items = []
+
+        for idx, (chap_title, chap_html) in enumerate(chapters, 1):
+            chap_id = f"chap{idx}"
+            chap_href = f"chapter{idx}.xhtml"
+            manifest_items.append(f'<item id="{chap_id}" href="{chap_href}" media-type="application/xhtml+xml"/>')
+            spine_items.append(f'<itemref idref="{chap_id}"/>')
+
+            full_html = f"""<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+  <title>{chap_title}</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <h2>{chap_title}</h2>
+  {chap_html}
+</body>
+</html>"""
+            z.writestr(f"OEBPS/{chap_href}", full_html)
+
+        manifest_str = "\n    ".join(manifest_items)
+        spine_str = "\n    ".join(spine_items)
+        # Note: metadata intentionally omits dc:title and dc:creator
+        content_opf = f"""<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">urn:uuid:missing-meta-1234-5678-1234-567812345678</dc:identifier>
+    <dc:language>en</dc:language>
+  </metadata>
+  <manifest>
+    {manifest_str}
+  </manifest>
+  <spine toc="toc">
+    {spine_str}
+  </spine>
+</package>"""
+        z.writestr("OEBPS/content.opf", content_opf)
+
+        nav_points = []
+        for idx, (chap_title, _) in enumerate(chapters, 1):
+            nav_points.append(f"""  <navPoint id="navPoint-{idx}" playOrder="{idx}">
+    <navLabel><text>{chap_title}</text></navLabel>
+    <content src="chapter{idx}.xhtml"/>
+  </navPoint>""")
+        nav_points_str = "\n".join(nav_points)
+        toc_ncx = f"""<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:missing-meta-1234-5678-1234-567812345678"/>
+    <meta name="dtb:depth" content="1"/>
+  </head>
+  <docTitle><text>Untitled</text></docTitle>
+  <navMap>
+{nav_points_str}
+  </navMap>
+</ncx>"""
+        z.writestr("OEBPS/toc.ncx", toc_ncx)
+
+        nav_li = "\n      ".join(f'<li><a href="chapter{idx}.xhtml">{ct}</a></li>' for idx, (ct, _) in enumerate(chapters, 1))
+        nav_xhtml = f"""<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>Navigation</title></head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>Table of Contents</h1>
+    <ol>
+      {nav_li}
+    </ol>
+  </nav>
+</body>
+</html>"""
+        z.writestr("OEBPS/nav.xhtml", nav_xhtml)
+
+        style_css = """body { font-family: sans-serif; line-height: 1.6; margin: 5%; }
+p { margin-bottom: 1em; text-indent: 1.5em; }
+h2 { color: #2a2a2a; border-bottom: 1px solid #ccc; }
+"""
+        z.writestr("OEBPS/style.css", style_css)
+
+    return filepath
+
 def compute_checksums():
     results = {}
     for filename in sorted(os.listdir(FIXTURES_DIR)):
@@ -228,6 +343,7 @@ if __name__ == "__main__":
     generate_canonical_text_epub()
     generate_illustrated_epub()
     generate_multilingual_rtl_epub()
+    generate_missing_metadata_coverless_epub()
     generate_sample_pdf()
     generate_sample_cbz()
     generate_malformed_samples()
@@ -236,4 +352,4 @@ if __name__ == "__main__":
     print("Generated fixtures:")
     for fname, sha in checksums.items():
         size = os.path.getsize(os.path.join(FIXTURES_DIR, fname))
-        print(f"  {fname:<25} {size:>8} bytes  SHA-256: {sha}")
+        print(f"  {fname:<35} {size:>8} bytes  SHA-256: {sha}")
