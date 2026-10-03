@@ -94,7 +94,7 @@ class ReaderToolbar(Gtk.Box):
     RIGHT_SPECS = (
         ("search", "system-search-symbolic", "Search"),
         ("read_aloud", "audio-speakers-symbolic", "Read aloud"),
-        ("display_settings", "format-text-larger-symbolic", "Text settings (tT)"),
+        ("display_settings", "font-x-generic-symbolic", "Text settings (tT)"),
         ("dictionary", "accessories-dictionary-symbolic", "Dictionary"),
         ("fullscreen", "view-fullscreen-symbolic", "Fullscreen"),
     )

@@ -120,7 +120,7 @@ class LibraryView(Gtk.Box):
         self.empty_status = Adw.StatusPage()
         self.empty_status.set_title("No Books in Library")
         self.empty_status.set_description("Import DRM-free EPUB, PDF, or Comic books to start reading offline.")
-        self.empty_status.set_icon_name("book-open-symbolic")
+        self.empty_status.set_icon_name("x-office-document-symbolic")
         btn_empty_import = Gtk.Button(label="Import Book")
         btn_empty_import.add_css_class("suggested-action")
         btn_empty_import.add_css_class("pill")
@@ -180,7 +180,7 @@ class LibraryView(Gtk.Box):
         row.set_child(row_box)
 
         # Book Icon / Format Badge
-        icon = Gtk.Image.new_from_icon_name("book-open-symbolic")
+        icon = Gtk.Image.new_from_icon_name("x-office-document-symbolic")
         icon.set_pixel_size(32)
         row_box.append(icon)
 
@@ -277,17 +277,26 @@ class LibraryView(Gtk.Box):
             self.on_open_book(existing)
             return
 
+        from ..covers import save_cover, clean_display_title
+
         ext = os.path.splitext(file_path)[1].lower().lstrip(".")
-        title = os.path.splitext(os.path.basename(file_path))[0]
+        title = clean_display_title(file_path)
         author = "Unknown Author"
         total_chaps = 1
+        cover_path = None
+        cover_data = None
+        cover_mime = ""
 
         if ext == "epub":
             try:
                 parser = EpubParser(file_path)
-                title = parser.title or title
-                author = parser.author or author
+                if parser.title and parser.title != "Untitled":
+                    title = parser.title
+                if parser.author and parser.author != "Unknown Author":
+                    author = parser.author
                 total_chaps = max(1, len(parser.chapters))
+                cover_data = parser.cover_data
+                cover_mime = parser.cover_mime or ""
             except Exception:
                 pass
         elif ext in ("cbz", "cbr"):
@@ -316,9 +325,53 @@ class LibraryView(Gtk.Box):
             file_size_bytes=os.path.getsize(file_path),
             added_at=time.time()
         )
+        if cover_data is not None:
+            saved = save_cover(book.id, cover_data, cover_mime)
+            if saved:
+                book.cover_path = saved
         self.book_repo.add(book)
         self.refresh_library()
         self.on_open_book(book)
+
+    def start_cover_backfill(self):
+        """Fill missing EPUB covers one book per idle tick (bounded)."""
+        try:
+            pending = [b for b in (self.book_repo.list_all() or [])
+                       if (b.file_format or "").lower() == "epub" and not b.cover_path]
+        except Exception:
+            return
+        state = {"queue": pending}
+
+        def _step():
+            queue = state["queue"]
+            if not queue:
+                return False
+            book = queue.pop(0)
+            try:
+                if book.cover_path or not book.file_path or not os.path.exists(book.file_path):
+                    return True
+                parser = EpubParser(book.file_path)
+                if parser.cover_data:
+                    from ..covers import save_cover
+                    saved = save_cover(book.id, parser.cover_data, parser.cover_mime or "")
+                    if saved:
+                        book.cover_path = saved
+                        self.book_repo.add(book)
+            except Exception:
+                pass
+            if not queue:
+                try:
+                    self.refresh_library(self.search_entry.get_text())
+                except Exception:
+                    pass
+                return False
+            return True
+
+        try:
+            from gi.repository import GLib
+            GLib.idle_add(_step)
+        except Exception:
+            pass
 
     def _on_catalog_clicked(self, button):
         try:

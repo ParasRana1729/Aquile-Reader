@@ -140,6 +140,36 @@
 .cover-card {
     border-radius: 8px;
     box-shadow: 0 2px 8px alpha(black, 0.35);
+    background-color: #FFFFFF;
+}
+
+.cover-tile {
+    background-color: #4A4A4A;
+    color: white;
+    border-radius: 6px;
+    padding: 12px;
+    font-weight: 600;
+}
+
+.cover-image {
+    border-radius: 6px;
+}
+
+.home-view {
+    background-color: #F2F2F2;
+}
+
+.home-h1 {
+    font-size: 1.35em;
+    font-weight: 700;
+}
+
+.home-empty {
+    opacity: 0.65;
+}
+
+.home-link {
+    box-shadow: none;
 }
 
 .library-cream {

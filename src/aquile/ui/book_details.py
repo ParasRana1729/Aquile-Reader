@@ -105,7 +105,7 @@ class BookDetailsPane(Gtk.Box):
         self.set_margin_top(12)
         self.set_margin_bottom(12)
 
-        self.cover_image = Gtk.Image.new_from_icon_name("book-open-symbolic")
+        self.cover_image = Gtk.Image.new_from_icon_name("x-office-document-symbolic")
         self.cover_image.set_pixel_size(96)
         self.append(self.cover_image)
 
@@ -276,7 +276,7 @@ class BookDetailsPane(Gtk.Box):
                 pass
         else:
             try:
-                self.cover_image.set_from_icon_name("book-open-symbolic")
+                self.cover_image.set_from_icon_name("x-office-document-symbolic")
             except Exception:
                 pass
 

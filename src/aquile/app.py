@@ -47,6 +47,12 @@ class AquileReaderApp(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
+        # B0 content areas are light; keep explicit dark chrome via CSS.
+        try:
+            from gi.repository import Adw as _Adw
+            _Adw.StyleManager.get_default().set_color_scheme(_Adw.ColorScheme.FORCE_LIGHT)
+        except Exception:
+            pass
         self._load_styles()
         about_action = Gio.SimpleAction.new("about", None)
         about_action.connect("activate", self._on_about)
@@ -54,7 +60,7 @@ class AquileReaderApp(Adw.Application):
 
     def _on_about(self, *args):
         about = Adw.AboutWindow(transient_for=self.window, application_name="Aquile Reader",
-                                application_icon="book-open-symbolic", version="0.2.0-preview",
+                                application_icon="x-office-document-symbolic", version="0.2.0-preview",
                                 comments="Native Ubuntu eBook reader (EPUB, PDF, CBZ/CBR) — offline-first clean-room port.",
                                 website="https://www.aquilereader.in/", license_type=Gtk.License.MIT)
         about.present()
@@ -122,6 +128,10 @@ class AquileReaderApp(Adw.Application):
         self.nav_stack = self.shell.stack
         self.window.set_content(self.shell)
         self.shell.set_page("home")
+        try:
+            self.library_view.start_cover_backfill()
+        except Exception:
+            pass
 
     def _on_shell_navigate(self, page: str):
         if page == "collections":

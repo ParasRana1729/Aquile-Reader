@@ -29,10 +29,10 @@ DEFAULT_ACCENT = "#009688"
 #: button face rather than an error, so these are presentation hints only.
 RAIL_ITEMS = (
     ("home", "Home", "go-home-symbolic"),
-    ("library", "Library", "books-symbolic"),
+    ("library", "Library", "emblem-documents-symbolic"),
     ("collections", "Collections", "document-edit-symbolic"),
     ("catalogs", "Catalogs", "web-browser-symbolic"),
-    ("statistics", "Statistics", "view-statistics-symbolic"),
+    ("statistics", "Statistics", "utilities-system-monitor-symbolic"),
     ("settings", "Settings", "emblem-system-symbolic"),
 )
 

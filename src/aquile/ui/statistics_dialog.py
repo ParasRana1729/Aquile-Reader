@@ -131,7 +131,7 @@ class StatisticsDialog(Adw.Window):
         content_box.append(self.header)
 
         # Chart icon + title affordance (B0 shot 9 header)
-        self.header_icon = Gtk.Image.new_from_icon_name("view-statistics-symbolic")
+        self.header_icon = Gtk.Image.new_from_icon_name("utilities-system-monitor-symbolic")
         self.header_icon.set_tooltip_text("Statistics")
         self.header.pack_start(self.header_icon)
 

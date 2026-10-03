@@ -20,12 +20,15 @@ class CorruptEpubError(Exception):
 class EpubParser:
     MAX_FILE_SIZE = 50 * 1024 * 1024     # 50 MB single file limit
     MAX_TOTAL_SIZE = 250 * 1024 * 1024   # 250 MB total archive limit
+    MAX_COVER_SIZE = 5 * 1024 * 1024     # 5 MB cover image limit
 
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.title: str = "Untitled"
         self.author: str = "Unknown Author"
         self.identifier: str = ""
+        self.cover_data: Optional[bytes] = None
+        self.cover_mime: str = ""
         self.manifest: Dict[str, str] = {}
         self.manifest_media: Dict[str, str] = {}
         self.spine_items: List[str] = []
@@ -132,8 +135,61 @@ class EpubParser:
                 # 4. Parse TOC (from nav or ncx)
                 self._parse_toc(z, opf_root, opf_dir, ns_opf)
 
+                # 5. Cover image (EPUB3 properties="cover-image" or EPUB2 meta name="cover")
+                self._extract_cover(z, opf_root, opf_dir, ns_opf)
+
         except (zipfile.BadZipFile, ET.ParseError) as e:
             raise CorruptEpubError(f"Corrupt or malformed EPUB archive: {e}")
+
+    def _extract_cover(self, z: zipfile.ZipFile, opf_root: ET.Element,
+                         opf_dir: str, ns_opf: dict) -> None:
+        """Best-effort cover extraction. Never raises: covers are optional."""
+        try:
+            cover_href: Optional[str] = None
+            cover_mime = ""
+            # EPUB3: manifest item with properties="cover-image".
+            for item in opf_root.findall(".//opf:item", ns_opf):
+                props = item.attrib.get("properties", "")
+                if "cover-image" in props.split():
+                    cover_href = item.attrib.get("href", "")
+                    cover_mime = item.attrib.get("media-type", "")
+                    break
+            # EPUB2: <meta name="cover" content="<manifest id>"/>.
+            if not cover_href:
+                for meta in opf_root.findall(".//opf:meta", ns_opf):
+                    if meta.attrib.get("name") == "cover":
+                        ref = meta.attrib.get("content", "")
+                        for item in opf_root.findall(".//opf:item", ns_opf):
+                            if item.attrib.get("id") == ref:
+                                cover_href = item.attrib.get("href", "")
+                                cover_mime = item.attrib.get("media-type", "")
+                                break
+                        break
+            if not cover_href:
+                return
+            full = os.path.normpath(os.path.join(opf_dir, cover_href)) if opf_dir else cover_href
+            if full.startswith("..") or os.path.isabs(full):
+                return
+            info = z.getinfo(full)
+            if info.file_size <= 0 or info.file_size > self.MAX_COVER_SIZE:
+                return
+            data = z.read(full)
+            if not cover_mime:
+                low = full.lower()
+                if low.endswith(".png"):
+                    cover_mime = "image/png"
+                elif low.endswith((".jpg", ".jpeg")):
+                    cover_mime = "image/jpeg"
+                elif low.endswith(".webp"):
+                    cover_mime = "image/webp"
+                elif low.endswith(".gif"):
+                    cover_mime = "image/gif"
+            if not cover_mime.startswith("image/"):
+                return
+            self.cover_data = data
+            self.cover_mime = cover_mime
+        except Exception:
+            pass
 
     def _extract_clean_text(self, html_content: str) -> str:
         # Strip script & style tags

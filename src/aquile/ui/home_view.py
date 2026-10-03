@@ -163,6 +163,8 @@ class HomeView(Gtk.Box):
         width, height = COVER_SIZE_LARGE if large else COVER_SIZE
         card = Gtk.Button()
         card.add_css_class("cover-card")
+        card.set_halign(Gtk.Align.CENTER)
+        card.set_valign(Gtk.Align.START)
         card.set_tooltip_text(getattr(book, "title", "Untitled"))
         # Late binding over the loop variable: capture this book now.
         card.connect("clicked", lambda _btn, b=book: self._on_card_clicked(b))
