@@ -21,6 +21,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, Gtk
 
+from .icon_loader import load as _load_icon, path_for as _icon_path_for
+
 #: Default teal accent seen on the reference Home/rail screenshots.
 DEFAULT_ACCENT = "#009688"
 
@@ -77,9 +79,17 @@ class AquileShell(Gtk.Box):
         self.rail.add_css_class("aquile-rail")
         self.rail.set_size_request(56, -1)
         for name, tooltip, icon_name in RAIL_ITEMS:
-            button = Gtk.Button(icon_name=icon_name)
+            button = Gtk.Button()
             button.set_tooltip_text(tooltip)
             button.add_css_class("rail-button")
+            try:
+                button.set_child(_load_icon(name, 24))
+            except Exception:
+                pass
+            try:
+                button._aquile_icon_path = _icon_path_for(name)  # noqa: SLF001
+            except Exception:
+                button._aquile_icon_path = None  # noqa: SLF001
             button.connect("clicked", self._on_rail_clicked, name)
             self.rail.append(button)
             self.rail_buttons[name] = button

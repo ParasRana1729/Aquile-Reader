@@ -257,3 +257,26 @@
     background-color: #fdf6e3;
     color: #657b83;
 }
+
+/* WP-B translucent dark chrome (append-only; existing rules untouched) */
+.aquile-titlebar {
+    background-color: rgba(58, 58, 58, 0.85);
+    background-image: linear-gradient(to bottom, rgba(74, 74, 74, 0.9), rgba(58, 58, 58, 0.85));
+    color: white;
+}
+
+.aquile-titlebar .aquile-title-label {
+    color: white;
+    font-weight: 600;
+}
+
+.aquile-rail {
+    background-color: rgba(58, 58, 58, 0.85);
+    background-image: linear-gradient(to bottom, rgba(66, 66, 66, 0.9), rgba(52, 52, 52, 0.85));
+}
+
+.reader-toolbar {
+    background-color: rgba(58, 58, 58, 0.85);
+    background-image: linear-gradient(to bottom, rgba(70, 70, 70, 0.9), rgba(55, 55, 55, 0.85));
+    color: white;
+}

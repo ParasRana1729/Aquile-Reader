@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-03T08:22:53.368960+00:00",
+  "generated_utc": "2026-10-03T10:13:26.935817+00:00",
   "headless": true,
   "no_screenshots": true,
   "style_css": "src/aquile/ui/style.css",
@@ -266,7 +266,7 @@
       "pages": 3,
       "p50_ms": 0.0001,
       "p95_ms": 0.0002,
-      "max_ms": 0.0018,
+      "max_ms": 0.0034,
       "budget_p95_ms": 100.0,
       "headless_proxy_note": "headless paginator timing only; on-device PF-03 confirmation needs target desktop (matched hardware)"
     }

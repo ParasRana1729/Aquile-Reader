@@ -20,11 +20,37 @@ from gi.repository import Gtk
 
 from typing import Callable, Dict, List, Optional
 
-from ..domain.models import AppSettings
+from ..domain.models import (
+    ACCENT_THEMES,
+    PAGE_THEME_LABELS,
+    PAGE_THEMES,
+    AppSettings,
+    validate_accent_name,
+    validate_page_theme,
+)
 
 # ---------------------------------------------------------------------------
-# Shared choice tables (importable by tests/callers)
+# Shared choice tables (importable by tests/callers).
+#
+# WP-C: the page/accent theme vocabulary lives in ``domain.models`` (single
+# source of truth); this module re-exports it so existing import sites keep
+# working.
 # ---------------------------------------------------------------------------
+
+__all__ = [
+    "FONT_CHOICES",
+    "PAGE_THEMES",
+    "PAGE_THEME_LABELS",
+    "ACCENT_THEMES",
+    "LAYOUT_COLUMNS",
+    "LAYOUT_LABELS",
+    "LAYOUT_TOOLTIPS",
+    "FONT_SIZE_MIN",
+    "FONT_SIZE_MAX",
+    "ReaderToolbar",
+    "ReaderStatusBar",
+    "ReaderDisplayPopover",
+]
 
 #: Font families offered by the display popover (matches SettingsDialog list).
 FONT_CHOICES: List[str] = [
@@ -36,9 +62,8 @@ FONT_CHOICES: List[str] = [
     "Liberation Serif",
 ]
 
-#: Page-theme keys persisted to ``AppSettings.theme`` (labels are Title Case).
-PAGE_THEMES: List[str] = ["white", "silver", "sepia", "night", "solarized", "custom"]
-PAGE_THEME_LABELS: List[str] = ["White", "Silver", "Sepia", "Night", "Solarized", "Custom"]
+# NOTE: PAGE_THEMES / PAGE_THEME_LABELS / ACCENT_THEMES are imported from
+# domain.models above (single source of truth, WP-C).
 
 #: Column counts persisted to ``AppSettings.columns`` (3 == book-spread).
 LAYOUT_COLUMNS: List[int] = [1, 2, 3]
@@ -471,12 +496,20 @@ class ReaderDisplayPopover(Gtk.Popover):
 
     def set_theme(self, key: str) -> str:
         """Selects a page theme (one of ``PAGE_THEMES``), persisting it."""
-        if str(key) not in PAGE_THEMES:
-            raise ValueError(f"unknown page theme: {key!r}")
-        self.settings.theme = str(key)
+        self.settings.theme = validate_page_theme(key)
         self._refresh_widgets()
         self._persist()
         return self.settings.theme
+
+    def get_accent(self) -> str:
+        """Returns the accent-theme name (one of ``ACCENT_THEMES``)."""
+        return str(getattr(self.settings, "accent", "turquoise"))
+
+    def set_accent(self, name: str) -> str:
+        """Selects an accent theme (one of ``ACCENT_THEMES``), persisting it."""
+        self.settings.accent = validate_accent_name(name)
+        self._persist()
+        return self.settings.accent
 
     def get_columns(self) -> int:
         return int(self.settings.columns)

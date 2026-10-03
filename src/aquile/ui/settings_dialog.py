@@ -8,8 +8,20 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw
 
-from ..domain.models import AppSettings
+from ..domain.models import (
+    ACCENT_LABELS,
+    ACCENT_THEMES,
+    PAGE_THEME_LABELS,
+    PAGE_THEMES,
+    AppSettings,
+    validate_accent_name,
+    validate_page_theme,
+)
 from ..storage.repository import SettingsRepository
+
+# Re-exported single-source vocabulary (WP-C): identical objects to
+# reader_chrome.PAGE_THEMES / ACCENT_THEMES so both UIs always agree.
+__all__ = ["SettingsDialog", "PAGE_THEMES", "PAGE_THEME_LABELS", "ACCENT_THEMES"]
 
 class SettingsDialog(Adw.PreferencesWindow):
     def __init__(self, parent_window, settings: AppSettings, settings_repo: SettingsRepository, on_changed_callback=None):
@@ -30,14 +42,30 @@ class SettingsDialog(Adw.PreferencesWindow):
         appearance_group = Adw.PreferencesGroup(title="Appearance & Theme")
         page.add(appearance_group)
 
-        # Theme Selector
+        # Theme Selector (shared WP-C vocabulary: white/silver/sepia/...).
         self.theme_row = Adw.ComboRow(title="Theme")
-        theme_model = Gtk.StringList.new(["Light", "Dark", "Sepia"])
+        theme_model = Gtk.StringList.new(PAGE_THEME_LABELS)
         self.theme_row.set_model(theme_model)
-        theme_idx = {"light": 0, "dark": 1, "sepia": 2}.get(self.settings.theme, 0)
+        try:
+            theme_idx = list(PAGE_THEMES).index(self.settings.theme)
+        except ValueError:
+            theme_idx = 0
         self.theme_row.set_selected(theme_idx)
         self.theme_row.connect("notify::selected", self._on_theme_changed)
         appearance_group.add(self.theme_row)
+
+        # Accent (color theme) selector (shared WP-C vocabulary).
+        self.accent_row = Adw.ComboRow(title="Accent")
+        accent_names = list(ACCENT_THEMES.keys())
+        accent_labels = [ACCENT_LABELS[name] for name in accent_names]
+        self.accent_row.set_model(Gtk.StringList.new(accent_labels))
+        try:
+            accent_idx = accent_names.index(getattr(self.settings, "accent", "turquoise"))
+        except ValueError:
+            accent_idx = 0
+        self.accent_row.set_selected(accent_idx)
+        self.accent_row.connect("notify::selected", self._on_accent_changed)
+        appearance_group.add(self.accent_row)
 
         # Column Layout (Signature Aquile Reader Two-Column Feature)
         self.column_row = Adw.ComboRow(title="Page Layout")
@@ -104,9 +132,16 @@ class SettingsDialog(Adw.PreferencesWindow):
 
     def _on_theme_changed(self, combo, _):
         idx = combo.get_selected()
-        themes = ["light", "dark", "sepia"]
-        self.settings.theme = themes[idx]
-        self._notify_change()
+        if 0 <= idx < len(PAGE_THEMES):
+            self.settings.theme = validate_page_theme(PAGE_THEMES[idx])
+            self._notify_change()
+
+    def _on_accent_changed(self, combo, _):
+        idx = combo.get_selected()
+        names = list(ACCENT_THEMES.keys())
+        if 0 <= idx < len(names):
+            self.settings.accent = validate_accent_name(names[idx])
+            self._notify_change()
 
     def _on_column_changed(self, combo, _):
         idx = combo.get_selected()
@@ -134,12 +169,20 @@ class SettingsDialog(Adw.PreferencesWindow):
         from ..domain.models import AppSettings
         self.settings = AppSettings()
         self.settings_repo.save(self.settings)
-        self.theme_row.set_selected(0)
+        try:
+            self.theme_row.set_selected(list(PAGE_THEMES).index(self.settings.theme))
+        except ValueError:
+            self.theme_row.set_selected(0)
         self.column_row.set_selected(0)
         self.font_size_scale.set_value(self.settings.font_size)
         self.line_height_scale.set_value(self.settings.line_height)
         self.font_row.set_selected(0)
         self.margin_scale.set_value(self.settings.margin_percent)
+        try:
+            self.accent_row.set_selected(
+                list(ACCENT_THEMES.keys()).index(self.settings.accent))
+        except ValueError:
+            self.accent_row.set_selected(0)
         if self.on_changed_callback:
             self.on_changed_callback(self.settings)
 

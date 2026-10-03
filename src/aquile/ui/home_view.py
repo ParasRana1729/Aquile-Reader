@@ -23,6 +23,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 
+from .icon_loader import load as _load_icon, path_for as _icon_path_for
+
 #: Standard card size; the first recent cover is rendered larger.
 COVER_SIZE = (128, 180)
 COVER_SIZE_LARGE = (184, 256)
@@ -74,8 +76,16 @@ class HomeView(Gtk.Box):
         title.set_xalign(0.0)
         title.set_hexpand(True)
         header.append(title)
-        self.add_button = Gtk.Button(icon_name="list-add-symbolic")
+        self.add_button = Gtk.Button()
         self.add_button.set_tooltip_text("Add books (open library)")
+        try:
+            self.add_button.set_child(_load_icon("plus", 24))
+        except Exception:
+            pass
+        try:
+            self.add_button._aquile_icon_path = _icon_path_for("plus")  # noqa: SLF001
+        except Exception:
+            self.add_button._aquile_icon_path = None  # noqa: SLF001
         self.add_button.connect("clicked", self._on_open_library)
         header.append(self.add_button)
         self.append(header)

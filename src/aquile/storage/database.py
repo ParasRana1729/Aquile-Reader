@@ -11,7 +11,7 @@ from typing import Optional, Generator
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
 
 def get_default_db_path() -> str:
     xdg_data = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
@@ -51,6 +51,9 @@ class Database:
             if version < 3:
                 logger.info("Migrating database from version %d to %d", version, CURRENT_SCHEMA_VERSION)
                 self._migrate_to_v3(conn)
+            if version < 4:
+                logger.info("Migrating database from version %d to %d", version, CURRENT_SCHEMA_VERSION)
+                self._migrate_to_v4(conn)
             conn.commit()
 
     def _migrate_to_v1(self, conn: sqlite3.Connection):
@@ -147,4 +150,17 @@ class Database:
         if "is_favorite" not in columns:
             conn.execute("ALTER TABLE books ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
         conn.execute("PRAGMA user_version = 3;")
+
+    def _migrate_to_v4(self, conn: sqlite3.Connection):
+        # WP-C theme unification: settings live in a schemaless key/value
+        # table, so no ALTER TABLE is possible or needed. The migration is
+        # additive and keeps all existing rows: it only ensures the new
+        # accent key has its default ('turquoise') when absent, then bumps
+        # the version. Unknown legacy values are left untouched; the
+        # SettingsRepository falls back to defaults when reading them.
+        logger.info("Migrating database to schema version 4 (theme accent default)")
+        conn.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES ('accent', 'turquoise');"
+        )
+        conn.execute("PRAGMA user_version = 4;")
 

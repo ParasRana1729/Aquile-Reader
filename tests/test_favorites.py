@@ -197,11 +197,11 @@ class TestFavorites(unittest.TestCase):
     def test_fresh_db_at_v3_with_column(self):
         tmp, db, repo = _make_repos()
         try:
-            self.assertEqual(CURRENT_SCHEMA_VERSION, 3)
+            self.assertEqual(CURRENT_SCHEMA_VERSION, 4)
             with db.get_connection() as conn:
                 cur = conn.cursor()
                 cur.execute("PRAGMA user_version;")
-                self.assertEqual(cur.fetchone()[0], 3)
+                self.assertEqual(cur.fetchone()[0], CURRENT_SCHEMA_VERSION)
                 cur.execute("PRAGMA table_info(books);")
                 cols = {row[1] for row in cur.fetchall()}
                 self.assertIn("is_favorite", cols)
@@ -217,7 +217,7 @@ class TestFavorites(unittest.TestCase):
             with db.get_connection() as conn:
                 cur = conn.cursor()
                 cur.execute("PRAGMA user_version;")
-                self.assertEqual(cur.fetchone()[0], 3)
+                self.assertEqual(cur.fetchone()[0], CURRENT_SCHEMA_VERSION)
                 cur.execute("PRAGMA table_info(books);")
                 cols = {row[1] for row in cur.fetchall()}
                 self.assertIn("is_favorite", cols)

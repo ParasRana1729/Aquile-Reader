@@ -41,6 +41,7 @@ class AquileReaderApp(Adw.Application):
         self.active_session_tracker: Optional[ReadingSessionTracker] = None
 
         self.window: Adw.ApplicationWindow = None
+        self.titlebar = None
         self.nav_stack: Gtk.Stack = None
         self.library_view: LibraryView = None
         self.current_reader_view: Optional[Union[ReaderView, ComicReaderView, PdfReaderView]] = None
@@ -98,6 +99,12 @@ class AquileReaderApp(Adw.Application):
         self.window = Adw.ApplicationWindow(application=self)
         self.window.set_title("Aquile Reader")
         self.window.set_default_size(1280, 800)
+        try:
+            from .ui.titlebar import AquileTitleBar, attach_titlebar
+            self.titlebar = AquileTitleBar(title="Aquile Reader")
+            attach_titlebar(self.window, self.titlebar)
+        except Exception:
+            self.titlebar = None
 
         # Connect orderly close persistence
         self.window.connect("close-request", self._on_window_close)
@@ -128,6 +135,7 @@ class AquileReaderApp(Adw.Application):
         self.nav_stack = self.shell.stack
         self.window.set_content(self.shell)
         self.shell.set_page("home")
+        self._apply_saved_appearance()
         try:
             self.library_view.start_cover_backfill()
         except Exception:
@@ -156,6 +164,17 @@ class AquileReaderApp(Adw.Application):
             self._revert_rail()
         elif page == "settings":
             self._open_settings()
+
+    def _apply_saved_appearance(self):
+        """Apply persisted accent + transparency to shell chrome."""
+        try:
+            settings = self.settings_repo.load()
+            from .domain.models import accent_hex_for
+            self.shell.set_accent(accent_hex_for(getattr(settings, "accent", "turquoise")))
+            from .ui.titlebar import apply_transparency
+            apply_transparency(self.shell.rail, int(getattr(settings, "transparency", 0) or 0))
+        except Exception:
+            pass
 
     def _revert_rail(self, page: str = "home"):
         try:
@@ -251,6 +270,13 @@ class AquileReaderApp(Adw.Application):
         self.shell.set_page("reader")
         # B0 reader is full-window chrome: hide the icon rail while reading.
         self.shell.rail.set_visible(False)
+        try:
+            title = f"{book.title} - Aquile Reader" if getattr(book, "title", None) else "Aquile Reader"
+            if getattr(self, "titlebar", None) is not None:
+                self.titlebar.set_title(title)
+            self.window.set_title(title)
+        except Exception:
+            pass
 
     def _start_reading_session(self, book: Book):
         fmt = (book.file_format or "epub").lower().strip()
@@ -303,6 +329,12 @@ class AquileReaderApp(Adw.Application):
         self.shell.rail.set_visible(True)
         self.library_view.refresh_library()
         self.shell.set_page("library")
+        try:
+            if getattr(self, "titlebar", None) is not None:
+                self.titlebar.set_title("Aquile Reader")
+            self.window.set_title("Aquile Reader")
+        except Exception:
+            pass
 
     def _on_window_close(self, window) -> bool:
         self._flush_active_session()

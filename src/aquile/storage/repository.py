@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 from typing import List, Optional, Any
 from ..domain.models import (
     Book, ReadingProgress, Annotation, AppSettings,
-    ReadingSession, BookStatistics, LibraryStatistics
+    ReadingSession, BookStatistics, LibraryStatistics,
+    ACCENT_THEMES, clamp_transparency, validate_accent_name,
 )
 from .database import Database
 
@@ -174,9 +175,15 @@ class SettingsRepository:
             if "line_height" in rows: settings.line_height = float(rows["line_height"])
             if "columns" in rows: settings.columns = int(rows["columns"])
             if "margin_percent" in rows: settings.margin_percent = int(rows["margin_percent"])
+            if "accent" in rows and rows["accent"] in ACCENT_THEMES:
+                settings.accent = rows["accent"]
+            if "transparency" in rows:
+                settings.transparency = clamp_transparency(rows["transparency"])
         return settings
 
     def save(self, settings: AppSettings):
+        validate_accent_name(settings.accent)
+        settings.transparency = clamp_transparency(settings.transparency)
         with self.db.get_connection() as conn:
             items = [
                 ("theme", settings.theme),
@@ -184,7 +191,9 @@ class SettingsRepository:
                 ("font_size", str(settings.font_size)),
                 ("line_height", str(settings.line_height)),
                 ("columns", str(settings.columns)),
-                ("margin_percent", str(settings.margin_percent))
+                ("margin_percent", str(settings.margin_percent)),
+                ("accent", settings.accent),
+                ("transparency", str(settings.transparency)),
             ]
             conn.executemany("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", items)
             conn.commit()

@@ -41,7 +41,7 @@ class TestStatisticsStorage(unittest.TestCase):
             cursor.execute("PRAGMA user_version;")
             version = cursor.fetchone()[0]
             self.assertEqual(version, CURRENT_SCHEMA_VERSION)
-            self.assertEqual(CURRENT_SCHEMA_VERSION, 3)
+            self.assertEqual(CURRENT_SCHEMA_VERSION, 4)
 
             cursor.execute("PRAGMA journal_mode;")
             journal_mode = cursor.fetchone()[0].lower()
