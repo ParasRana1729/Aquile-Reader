@@ -13,20 +13,30 @@ import time
 
 from ..domain.models import Book, ReadingProgress, Annotation
 from ..storage.repository import (
-    BookRepository, ReadingProgressRepository, AnnotationRepository
+    BookRepository, ReadingProgressRepository, AnnotationRepository,
+    StatisticsRepository, SettingsRepository
 )
 from ..reader.epub_parser import EpubParser
+from .statistics_dialog import StatisticsDialog
 
 class LibraryView(Gtk.Box):
     def __init__(self, book_repo: BookRepository, progress_repo: ReadingProgressRepository,
-                 ann_repo: AnnotationRepository, on_open_book: Callable[[Book], None]):
+                 ann_repo: AnnotationRepository, on_open_book: Callable[[Book], None],
+                 stats_repo: Optional[StatisticsRepository] = None,
+                 settings_repo: Optional[SettingsRepository] = None,
+                 on_show_statistics: Optional[Callable[[Optional[str]], None]] = None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.book_repo = book_repo
         self.progress_repo = progress_repo
         self.ann_repo = ann_repo
         self.on_open_book = on_open_book
+        self.stats_repo = stats_repo
+        self.settings_repo = settings_repo
+        self.on_show_statistics = on_show_statistics
 
         self.books: List[Book] = []
+        self.sort_key: str = "recent"
+        self.format_filter: str = "all"
         self._build_ui()
         self.refresh_library()
 
@@ -37,7 +47,7 @@ class LibraryView(Gtk.Box):
 
         # Import Book Button (+)
         btn_import = Gtk.Button(icon_name="list-add-symbolic")
-        btn_import.set_tooltip_text("Import eBook (EPUB, PDF, CBZ)")
+        btn_import.set_tooltip_text("Import eBook (EPUB, PDF, CBZ, CBR)")
         btn_import.connect("clicked", self._on_import_clicked)
         self.header.pack_start(btn_import)
 
@@ -46,6 +56,12 @@ class LibraryView(Gtk.Box):
         btn_collections.set_tooltip_text("Collections: All Highlights & Notes (FR-11)")
         btn_collections.connect("clicked", self._on_collections_clicked)
         self.header.pack_start(btn_collections)
+
+        # Reading Statistics Button (FR-15)
+        btn_stats = Gtk.Button(icon_name="utilities-system-monitor-symbolic")
+        btn_stats.set_tooltip_text("Reading Statistics & Insights (FR-15)")
+        btn_stats.connect("clicked", lambda b: self._on_statistics_clicked())
+        self.header.pack_start(btn_stats)
 
         # Title
         self.title_widget = Adw.WindowTitle(title="Aquile Reader", subtitle="My Local Library")
@@ -57,6 +73,18 @@ class LibraryView(Gtk.Box):
         self.search_entry.set_hexpand(False)
         self.search_entry.connect("search-changed", self._on_search_changed)
         self.header.pack_end(self.search_entry)
+
+        # Sort selector (FR-03: sort choices/direction)
+        self.sort_combo = Gtk.DropDown.new_from_strings(["Recent", "Title A–Z", "Author A–Z"])
+        self.sort_combo.set_tooltip_text("Sort library")
+        self.sort_combo.connect("notify::selected", self._on_sort_changed)
+        self.header.pack_end(self.sort_combo)
+
+        # Format filter (FR-03: filters)
+        self.format_combo = Gtk.DropDown.new_from_strings(["All formats", "EPUB", "PDF", "CBZ/CBR"])
+        self.format_combo.set_tooltip_text("Filter by format")
+        self.format_combo.connect("notify::selected", self._on_format_changed)
+        self.header.pack_end(self.format_combo)
 
         # 2. Scrolled Area for Books
         self.scrolled = Gtk.ScrolledWindow()
@@ -91,6 +119,13 @@ class LibraryView(Gtk.Box):
     def refresh_library(self, search_query: str = ""):
         self.books = self.book_repo.list_all()
 
+        # Apply sort (FR-03)
+        if self.sort_key == "title":
+            self.books.sort(key=lambda b: b.title.lower())
+        elif self.sort_key == "author":
+            self.books.sort(key=lambda b: (b.author.lower(), b.title.lower()))
+        # "recent" keeps repository ORDER BY added_at DESC
+
         # Clear existing rows
         while child := self.list_box.get_first_child():
             self.list_box.remove(child)
@@ -101,6 +136,14 @@ class LibraryView(Gtk.Box):
         for book in self.books:
             if query and (query not in book.title.lower() and query not in book.author.lower()):
                 continue
+            if self.format_filter != "all":
+                fmt = (book.file_format or "").lower()
+                if self.format_filter == "epub" and fmt != "epub":
+                    continue
+                if self.format_filter == "pdf" and fmt != "pdf":
+                    continue
+                if self.format_filter == "comic" and fmt not in ("cbz", "cbr", "comic"):
+                    continue
 
             row = self._create_book_row(book)
             self.list_box.append(row)
@@ -139,10 +182,17 @@ class LibraryView(Gtk.Box):
 
         progress = self.progress_repo.get(book.id)
         prog_str = f"Progress: {progress.percentage:.0f}%" if progress else "Unread"
-        lbl_sub = Gtk.Label(label=f"{book.author} • {book.file_format.upper()} • {prog_str}")
+        size_str = f"{book.file_size_bytes // 1024} KB" if book.file_size_bytes else "size unknown"
+        lbl_sub = Gtk.Label(label=f"{book.author} • {book.file_format.upper()} • {prog_str} • {book.total_chapters} ch • {size_str}")
         lbl_sub.set_xalign(0)
         lbl_sub.add_css_class("book-author")
         info_box.append(lbl_sub)
+
+        # Reading Insights Button (FR-15)
+        btn_stat = Gtk.Button(icon_name="utilities-system-monitor-symbolic")
+        btn_stat.set_tooltip_text("Reading Insights")
+        btn_stat.connect("clicked", lambda b, bid=book.id: self._on_statistics_clicked(initial_book_id=bid))
+        row_box.append(btn_stat)
 
         # Open Button
         btn_open = Gtk.Button(label="Read")
@@ -161,17 +211,26 @@ class LibraryView(Gtk.Box):
     def _on_search_changed(self, entry):
         self.refresh_library(entry.get_text())
 
+    def _on_sort_changed(self, dropdown, _):
+        self.sort_key = ["recent", "title", "author"][dropdown.get_selected()]
+        self.refresh_library(self.search_entry.get_text())
+
+    def _on_format_changed(self, dropdown, _):
+        self.format_filter = ["all", "epub", "pdf", "comic"][dropdown.get_selected()]
+        self.refresh_library(self.search_entry.get_text())
+
     def _on_import_clicked(self, button):
         # File dialog using Gtk.FileDialog in GTK4
         file_dialog = Gtk.FileDialog()
         file_dialog.set_title("Select eBook to Import")
 
-        # Filters for EPUB, PDF, CBZ
+        # Filters for EPUB, PDF, CBZ, CBR
         filter_all = Gtk.FileFilter()
-        filter_all.set_name("All Supported eBooks (*.epub, *.pdf, *.cbz)")
+        filter_all.set_name("All Supported eBooks (*.epub, *.pdf, *.cbz, *.cbr)")
         filter_all.add_pattern("*.epub")
         filter_all.add_pattern("*.pdf")
         filter_all.add_pattern("*.cbz")
+        filter_all.add_pattern("*.cbr")
 
         filters = Gio.ListStore.new(Gtk.FileFilter)
         filters.append(filter_all)
@@ -210,6 +269,22 @@ class LibraryView(Gtk.Box):
                 total_chaps = max(1, len(parser.chapters))
             except Exception:
                 pass
+        elif ext in ("cbz", "cbr"):
+            try:
+                from ..reader.comic_reader import ComicArchiveEngine
+                engine = ComicArchiveEngine(file_path)
+                total_chaps = max(1, engine.get_page_count())
+                engine.close()
+            except Exception:
+                pass
+        elif ext == "pdf":
+            try:
+                from ..reader.pdf_reader import PdfDocumentEngine
+                engine = PdfDocumentEngine(file_path)
+                total_chaps = max(1, engine.get_page_count())
+                engine.close()
+            except Exception:
+                pass
 
         book = Book(
             title=title,
@@ -224,9 +299,36 @@ class LibraryView(Gtk.Box):
         self.refresh_library()
         self.on_open_book(book)
 
+    def _on_statistics_clicked(self, initial_book_id: Optional[str] = None):
+        if self.on_show_statistics:
+            self.on_show_statistics(initial_book_id)
+            return
+        if not self.stats_repo:
+            return
+        parent = self.get_root()
+        settings = self.settings_repo.load() if self.settings_repo else None
+        dialog = StatisticsDialog(
+            parent_window=parent,
+            stats_repo=self.stats_repo,
+            book_repo=self.book_repo,
+            settings=settings,
+            initial_book_id=initial_book_id
+        )
+        dialog.present()
+
     def _on_delete_book(self, book_id: str):
-        self.book_repo.delete(book_id)
-        self.refresh_library()
+        dialog = Adw.MessageDialog(transient_for=self.get_root(), heading="Remove from library?",
+                                   body="The library entry and its reading data will be removed. The source file on disk is kept.")
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("remove", "Remove")
+        dialog.set_response_appearance("remove", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.connect("response", lambda d, r: self._confirm_delete(r, book_id))
+        dialog.present()
+
+    def _confirm_delete(self, response: str, book_id: str):
+        if response == "remove":
+            self.book_repo.delete(book_id)
+            self.refresh_library()
 
     def _on_collections_clicked(self, button):
         # Open Collections Window (FR-11)
@@ -242,35 +344,64 @@ class LibraryView(Gtk.Box):
         header = Adw.HeaderBar()
         box.append(header)
 
+        search = Gtk.SearchEntry(placeholder_text="Search annotations...")
+        search.set_margin_start(16)
+        search.set_margin_end(16)
+        search.set_margin_top(8)
+        box.append(search)
+
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_vexpand(True)
         box.append(scrolled)
 
-        all_anns = self.ann_repo.list_all()
-        if not all_anns:
-            status = Adw.StatusPage()
-            status.set_title("No Annotations Yet")
-            status.set_description("Highlights and notes created while reading will appear here across all your books.")
-            status.set_icon_name("emblem-favorite-symbolic")
-            scrolled.set_child(status)
-        else:
-            list_box = Gtk.ListBox()
-            list_box.add_css_class("boxed-list")
-            list_box.set_margin_start(16)
-            list_box.set_margin_end(16)
-            list_box.set_margin_top(16)
-            list_box.set_margin_bottom(16)
-            scrolled.set_child(list_box)
+        list_box = Gtk.ListBox()
+        list_box.add_css_class("boxed-list")
+        list_box.set_margin_start(16)
+        list_box.set_margin_end(16)
+        list_box.set_margin_top(8)
+        list_box.set_margin_bottom(16)
 
-            for ann in all_anns:
-                row = Adw.ActionRow()
+        def populate(query: str = ""):
+            while child := list_box.get_first_child():
+                list_box.remove(child)
+            q = query.strip().lower()
+            shown = 0
+            for ann in self.ann_repo.list_all():
                 book = self.book_repo.get_by_id(ann.book_id)
                 book_title = book.title if book else "Unknown Book"
-                row.set_title(f'"{ann.text_content}"')
+                hay = f"{ann.text_content} {ann.note_text} {book_title}".lower()
+                if q and q not in hay:
+                    continue
+                row = Adw.ActionRow(activatable=True)
+                row.set_title(f'"{ann.text_content[:120]}"')
                 subtitle = f"Book: {book_title}"
                 if ann.note_text:
-                    subtitle += f" • Note: {ann.note_text}"
+                    subtitle += f" • Note: {ann.note_text[:80]}"
                 row.set_subtitle(subtitle)
+                row.add_suffix(Gtk.Image.new_from_icon_name("go-next-symbolic"))
+                row.connect("activated", lambda r, b=book: self._on_collection_jump(dialog, b))
+                btn_del = Gtk.Button(icon_name="user-trash-symbolic")
+                btn_del.set_tooltip_text("Delete annotation")
+                btn_del.connect("clicked", lambda b, aid=ann.id: (self.ann_repo.delete(aid), populate(search.get_text())))
+                row.add_suffix(btn_del)
                 list_box.append(row)
+                shown += 1
+            if shown == 0:
+                status = Adw.StatusPage()
+                status.set_title("No Annotations Yet" if not q else "No matches")
+                status.set_description("Highlights and notes created while reading will appear here across all your books.")
+                status.set_icon_name("emblem-favorite-symbolic")
+                scrolled.set_child(status)
+            else:
+                scrolled.set_child(list_box)
+
+        search.connect("search-changed", lambda e: populate(e.get_text()))
+        populate()
 
         dialog.present()
+
+    def _on_collection_jump(self, dialog, book):
+        if book is None:
+            return
+        dialog.close()
+        self.on_open_book(book)

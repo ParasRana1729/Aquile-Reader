@@ -745,7 +745,7 @@ class TestTier4RealWorldScenarios(unittest.TestCase):
 
         import uuid
         app = AquileReaderApp(db_path=self.db_path)
-        app.set_application_id(f"org.antigravity.AquileReader.E2EPdf.{uuid.uuid4().hex[:8]}")
+        app.set_application_id(f"org.antigravity.AquileReader.E2EPdf_x{uuid.uuid4().hex[:8]}")
         app.register()
         app.activate()
 
@@ -808,7 +808,7 @@ class TestTier4RealWorldScenarios(unittest.TestCase):
 
         import uuid
         app = AquileReaderApp(db_path=self.db_path)
-        app.set_application_id(f"org.antigravity.AquileReader.E2ECbz.{uuid.uuid4().hex[:8]}")
+        app.set_application_id(f"org.antigravity.AquileReader.E2ECbz_x{uuid.uuid4().hex[:8]}")
         app.register()
         app.activate()
 

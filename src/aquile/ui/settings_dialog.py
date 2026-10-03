@@ -71,6 +71,37 @@ class SettingsDialog(Adw.PreferencesWindow):
         line_height_row.add_suffix(self.line_height_scale)
         type_group.add(line_height_row)
 
+        # Font Family (AppSettings.font_family was persisted but had no UI row)
+        self.font_row = Adw.ComboRow(title="Font Family")
+        font_model = Gtk.StringList.new(["Sans", "Serif", "Monospace", "Cantarell", "Noto Serif", "Liberation Serif"])
+        self.font_row.set_model(font_model)
+        try:
+            font_idx = list(["Sans", "Serif", "Monospace", "Cantarell", "Noto Serif", "Liberation Serif"]).index(self.settings.font_family)
+        except ValueError:
+            font_idx = 0
+        self.font_row.set_selected(font_idx)
+        self.font_row.connect("notify::selected", self._on_font_changed)
+        type_group.add(self.font_row)
+
+        # Margins (AppSettings.margin_percent was persisted but had no UI row)
+        margin_row = Adw.ActionRow(title="Margins (%)")
+        self.margin_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 20, 1)
+        self.margin_scale.set_value(self.settings.margin_percent)
+        self.margin_scale.set_hexpand(True)
+        self.margin_scale.set_draw_value(True)
+        self.margin_scale.connect("value-changed", self._on_margin_changed)
+        margin_row.add_suffix(self.margin_scale)
+        type_group.add(margin_row)
+
+        # Reset group
+        reset_group = Adw.PreferencesGroup(title="Defaults")
+        page.add(reset_group)
+        reset_row = Adw.ActionRow(title="Reset to defaults")
+        btn_reset = Gtk.Button(label="Reset")
+        btn_reset.connect("clicked", self._on_reset_clicked)
+        reset_row.add_suffix(btn_reset)
+        reset_group.add(reset_row)
+
     def _on_theme_changed(self, combo, _):
         idx = combo.get_selected()
         themes = ["light", "dark", "sepia"]
@@ -89,6 +120,28 @@ class SettingsDialog(Adw.PreferencesWindow):
     def _on_line_height_changed(self, scale):
         self.settings.line_height = round(scale.get_value(), 2)
         self._notify_change()
+
+    def _on_font_changed(self, combo, _):
+        fonts = ["Sans", "Serif", "Monospace", "Cantarell", "Noto Serif", "Liberation Serif"]
+        self.settings.font_family = fonts[combo.get_selected()]
+        self._notify_change()
+
+    def _on_margin_changed(self, scale):
+        self.settings.margin_percent = int(scale.get_value())
+        self._notify_change()
+
+    def _on_reset_clicked(self, button):
+        from ..domain.models import AppSettings
+        self.settings = AppSettings()
+        self.settings_repo.save(self.settings)
+        self.theme_row.set_selected(0)
+        self.column_row.set_selected(0)
+        self.font_size_scale.set_value(self.settings.font_size)
+        self.line_height_scale.set_value(self.settings.line_height)
+        self.font_row.set_selected(0)
+        self.margin_scale.set_value(self.settings.margin_percent)
+        if self.on_changed_callback:
+            self.on_changed_callback(self.settings)
 
     def _notify_change(self):
         self.settings_repo.save(self.settings)

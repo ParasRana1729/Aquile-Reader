@@ -17,6 +17,12 @@ The architecture follows clean separation of concerns:
   - `ComicReaderView` (`src/aquile/ui/comic_view.py`): Comic graphic canvas displaying single or double pages in `Gtk.Picture` with aspect ratio containment, spread controls, and LTR/RTL mode switching.
   - `PdfReaderView` (`src/aquile/ui/pdf_view.py`): PDF canvas displaying vector-rendered pages in `Gtk.Picture`, zoom/fit controls, and direct page jumping.
   - `StatisticsDialog` (`src/aquile/ui/statistics_dialog.py`): Libadwaita dialog with `Adw.ViewSwitcher` tabs ("Library Overview" and "Book Insights").
+- **Service Layer (G3 slice, headless-tested, UI wiring pending):**
+  - `TtsEngine` (`src/aquile/reader/tts_engine.py`) + `DictionaryService` (`src/aquile/reader/dictionary.py`): offline-first read-aloud/dictionary with explicit cloud consent (FR-12/FR-13).
+  - `OpdsClient`/`CatalogManager` (`src/aquile/catalog/`): open-protocol catalog discovery/download with traversal/size guards (FR-14).
+  - `ExchangeBundle`/`SyncState` (`src/aquile/sync/`): local zip export/import migration with newer-wins conflicts (FR-17/FR-19).
+  - `TierManager`/`AdPolicy` (`src/aquile/entitlements/`): local free/trial/premium gates + offline promo slots (FR-18).
+  - Packaging groundwork: `debian/control`, `debian/rules`, `scripts/build_deb.sh` (UB-03–UB-06; signed APT is a manual next step).
 
 ## Code Layout
 - `src/aquile/domain/models.py`: Domain dataclasses (`ReadingSession`, `BookStatistics`, `LibraryStatistics`).
@@ -66,11 +72,12 @@ The architecture follows clean separation of concerns:
 |---|------|-------|-------------|--------|
 | M-TEST | E2E Testing Suite | Test infrastructure and comprehensive Tiers 1-4 test cases | none | DONE (TEST_READY.md published, 25 tests created) |
 | M1 | Storage & Domain Models | Schema v2 migration, models, `StatisticsRepository`, fixture repair | none | DONE (Gate passed, 6/6 unanimous approvals) |
-| M2 | Comic Reader Engine & View | `ComicArchiveEngine`, `ComicReaderView`, natural sort, spreads, LTR/RTL | M1 | PLANNED |
-| M3 | PDF Reader Engine & View | `PdfDocumentEngine`, `PdfReaderView`, poppler ctypes/CLI, zoom/fit math | M1 | PLANNED |
-| M4 | Reading Statistics & Dialog | `ReadingSessionTracker`, WPM math, `StatisticsDialog` UI & theming | M1 | PLANNED |
-| M5 | Application Integration | `app.py` routing, `LibraryView` multi-format imports, stats button | M2, M3, M4 | PLANNED |
-| M-FINAL | Final Verification & Hardening | Phase 1: 100% E2E test pass (Tiers 1-4); Phase 2: Tier 5 adversarial hardening | M5, M-TEST | PLANNED |
+| M2 | Comic Reader Engine & View | `ComicArchiveEngine`, `ComicReaderView`, natural sort, spreads, LTR/RTL | M1 | DONE (22/22 tests/test_comic_reader.py) |
+| M3 | PDF Reader Engine & View | `PdfDocumentEngine`, `PdfReaderView`, poppler ctypes/CLI, zoom/fit math | M1 | DONE (11/11 tests/test_pdf_reader.py) |
+| M4 | Reading Statistics & Dialog | `ReadingSessionTracker`, WPM math, `StatisticsDialog` UI & theming | M1 | DONE (16/16 tests/test_reading_statistics.py) |
+| M5 | Application Integration | `app.py` routing, `LibraryView` multi-format imports, stats button | M2, M3, M4 | DONE (polymorphic routing + session flush + stats dialog; 25/25 E2E pass) |
+| M6 | G3 Service & Release Slice | WP-12 TTS/dictionary, WP-13 OPDS catalogs, WP-14 exchange/sync-state, WP-15 tiers/ads, WP-16 .deb groundwork; WP-11 polish (sort/filter, settings font+margin+reset, collections search/jump-back/delete, about) | M5 | DONE (61 new tests: 14 TTS/dict + 17 catalog + 14 sync + 16 entitlements; 155/155 total pass) |
+| M-FINAL | Final Verification & Hardening | Phase 1: 100% E2E test pass (Tiers 1-4); Phase 2: Tier 5 adversarial hardening | M5, M-TEST | IN_PROGRESS (Phase 1 green 155/155; Tier 5 + G3/G4 matrix qualification remain) |
 
 ## Interface Contracts
 
