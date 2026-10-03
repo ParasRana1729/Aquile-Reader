@@ -64,8 +64,8 @@ The architecture follows clean separation of concerns:
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M-TEST | E2E Testing Suite | Test infrastructure and comprehensive Tiers 1-4 test cases | none | IN_PROGRESS (test_writer_1: 039e693a-6a53-4d95-b346-1d64bb8bc963) |
-| M1 | Storage & Domain Models | Schema v2 migration, models, `StatisticsRepository`, fixture repair | none | IN_PROGRESS (worker_m1: 6bdb1a13-4cb7-42f0-9ffe-960c1ef3e302) |
+| M-TEST | E2E Testing Suite | Test infrastructure and comprehensive Tiers 1-4 test cases | none | DONE (TEST_READY.md published, 25 tests created) |
+| M1 | Storage & Domain Models | Schema v2 migration, models, `StatisticsRepository`, fixture repair | none | DONE (Gate passed, 6/6 unanimous approvals) |
 | M2 | Comic Reader Engine & View | `ComicArchiveEngine`, `ComicReaderView`, natural sort, spreads, LTR/RTL | M1 | PLANNED |
 | M3 | PDF Reader Engine & View | `PdfDocumentEngine`, `PdfReaderView`, poppler ctypes/CLI, zoom/fit math | M1 | PLANNED |
 | M4 | Reading Statistics & Dialog | `ReadingSessionTracker`, WPM math, `StatisticsDialog` UI & theming | M1 | PLANNED |
