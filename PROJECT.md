@@ -77,7 +77,8 @@ The architecture follows clean separation of concerns:
 | M4 | Reading Statistics & Dialog | `ReadingSessionTracker`, WPM math, `StatisticsDialog` UI & theming | M1 | DONE (16/16 tests/test_reading_statistics.py) |
 | M5 | Application Integration | `app.py` routing, `LibraryView` multi-format imports, stats button | M2, M3, M4 | DONE (polymorphic routing + session flush + stats dialog; 25/25 E2E pass) |
 | M6 | G3 Service & Release Slice | WP-12 TTS/dictionary, WP-13 OPDS catalogs, WP-14 exchange/sync-state, WP-15 tiers/ads, WP-16 .deb groundwork; WP-11 polish (sort/filter, settings font+margin+reset, collections search/jump-back/delete, about) | M5 | DONE (61 new tests: 14 TTS/dict + 17 catalog + 14 sync + 16 entitlements; 155/155 total pass) |
-| M-FINAL | Final Verification & Hardening | Phase 1: 100% E2E test pass (Tiers 1-4); Phase 2: Tier 5 adversarial hardening | M5, M-TEST | IN_PROGRESS (Phase 1 green 155/155; Tier 5 + G3/G4 matrix qualification remain) |
+| M7 | G3 UI Wiring + Tier 5 Hardening | Library catalog/exchange buttons, reader TTS/dictionary buttons; comic NFR-06 caps; 10 TTS-UI + 7 catalog/exchange-UI + 20 Tier5 adversarial tests; build_deb hardened + G3_EVIDENCE.md | M6 | DONE (192/192 pass; .deb 63K verified unsigned preview) |
+| M-FINAL | Final Verification & Hardening | Phase 1: 100% E2E test pass (Tiers 1-4); Phase 2: Tier 5 adversarial hardening | M5, M-TEST | DONE Phase 1+2 headless (192/192 + 5/5 spikes); G3/G4 target-matrix qualification (AT-10/11/13, signed APT, 24h endurance, 5-user study) BLOCKED on hardware/environments |
 
 ## Interface Contracts
 
