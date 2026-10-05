@@ -44,3 +44,12 @@ htmlcov/
 *.swp
 *~
 .DS_Store
+
+# Frontend & Node
+frontend/node_modules/
+frontend/dist/
+
+# Rust / Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+node_modules/

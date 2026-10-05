@@ -1,0 +1,30 @@
+{
+  "name": "aquile-reader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "tauri": "tauri",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ParasRana1729/Aquile-Reader.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ParasRana1729/Aquile-Reader/issues"
+  },
+  "homepage": "https://github.com/ParasRana1729/Aquile-Reader#readme",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1"
+  }
+}
