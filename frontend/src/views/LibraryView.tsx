@@ -16,22 +16,29 @@ import {
   Clock,
   HardDrive,
   FolderOpen,
+  FolderSearch,
+  CheckCircle2,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { BookWithProgress, ViewMode, SortOption } from '../types/book';
 import {
   fetchBooks,
   importBook,
+  importMultipleBooks,
   deleteBook,
   toggleFavorite,
   pickBookFile,
+  pickBookFiles,
+  pickFolder,
+  scanDirectoryBooks,
 } from '../utils/ipc';
 
 interface LibraryViewProps {
   onOpenBook: (bookId: string) => void;
+  refreshTrigger?: number;
 }
 
-export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook }) => {
+export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTrigger }) => {
   const { currentTheme } = useTheme();
   const [books, setBooks] = useState<BookWithProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +51,21 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<BookWithProgress | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const notificationTimer = useRef<number | null>(null);
+
+  const showNotification = (msg: string) => {
+    setNotification(msg);
+    if (notificationTimer.current) {
+      window.clearTimeout(notificationTimer.current);
+    }
+    notificationTimer.current = window.setTimeout(() => {
+      setNotification(null);
+    }, 4000);
+  };
 
   const loadBooks = async () => {
     try {
@@ -64,16 +84,21 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook }) => {
 
   useEffect(() => {
     loadBooks();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleAddBook = async () => {
-    const selectedPath = await pickBookFile();
-    if (selectedPath) {
+    const selectedPaths = await pickBookFiles();
+    if (selectedPaths && selectedPaths.length > 0) {
       try {
-        const imported = await importBook(selectedPath);
+        const imported = await importMultipleBooks(selectedPaths);
         await loadBooks();
-        setSelectedBook(imported);
-        setIsInspectorOpen(true);
+        if (imported.length > 0) {
+          setSelectedBook(imported[0]);
+          setIsInspectorOpen(true);
+        }
+        showNotification(
+          `Imported ${imported.length} book${imported.length === 1 ? '' : 's'} successfully`
+        );
       } catch (e) {
         console.error('Book import failed:', e);
       }
@@ -82,17 +107,60 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook }) => {
     }
   };
 
+  const handleScanFolder = async () => {
+    setIsScanning(true);
+    try {
+      let dirPath = await pickFolder();
+      if (!dirPath) {
+        const prompted = window.prompt('Enter folder path to scan for books (.epub, .pdf, .cbz):');
+        if (prompted && prompted.trim()) {
+          dirPath = prompted.trim();
+        }
+      }
+      if (dirPath) {
+        const foundFiles = await scanDirectoryBooks(dirPath);
+        if (foundFiles.length === 0) {
+          showNotification(`No books found in "${dirPath}"`);
+        } else {
+          const imported = await importMultipleBooks(foundFiles);
+          await loadBooks();
+          if (imported.length > 0) {
+            setSelectedBook(imported[0]);
+            setIsInspectorOpen(true);
+          }
+          showNotification(
+            `Imported ${imported.length} book${imported.length === 1 ? '' : 's'} successfully`
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Folder scan failed:', err);
+      showNotification('Failed to scan folder');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
       try {
-        const imported = await importBook(file.name);
+        const paths = files.map((f) => (f as any).path || f.name);
+        const imported = await importMultipleBooks(paths);
         await loadBooks();
-        setSelectedBook(imported);
-        setIsInspectorOpen(true);
+        if (imported.length > 0) {
+          setSelectedBook(imported[0]);
+          setIsInspectorOpen(true);
+        }
+        showNotification(
+          `Imported ${imported.length} book${imported.length === 1 ? '' : 's'} successfully`
+        );
       } catch (err) {
         console.error('File import error:', err);
       }
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -178,13 +246,34 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook }) => {
 
   return (
     <div className="flex h-full w-full select-none overflow-hidden relative text-white">
+      {/* Hidden file input with multiple selection support */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileInput}
         accept=".epub,.pdf,.cbz,.cbr"
+        multiple
         className="hidden"
       />
+
+      {/* Subtle Import Notification Banner */}
+      {notification && (
+        <div className="fixed top-12 right-8 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#202020]/95 backdrop-blur-xl border border-white/15 text-white shadow-2xl transition-all">
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: currentTheme.accent }}
+          />
+          <CheckCircle2 size={16} className="text-emerald-400 flex-shrink-0" />
+          <span className="text-[13px] font-medium">{notification}</span>
+          <button
+            type="button"
+            onClick={() => setNotification(null)}
+            className="ml-2 text-neutral-400 hover:text-white p-0.5 rounded cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Main Library Center Section */}
       <div className="flex-1 flex flex-col h-full overflow-hidden px-8 py-4">
@@ -330,9 +419,22 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook }) => {
               type="button"
               onClick={handleAddBook}
               className="p-2 rounded hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-              title="Add Book to Library"
+              title="Add Book(s) to Library"
             >
               <Plus size={20} className="stroke-[2.5]" />
+            </button>
+
+            {/* Scan Folder Button */}
+            <button
+              type="button"
+              onClick={handleScanFolder}
+              disabled={isScanning}
+              className={`p-2 rounded hover:bg-white/10 hover:text-white transition-colors cursor-pointer ${
+                isScanning ? 'animate-pulse text-neutral-400' : ''
+              }`}
+              title="Scan Folder for Books"
+            >
+              <FolderSearch size={18} />
             </button>
 
             {/* Inspect / Select Mode Toggle */}
@@ -361,15 +463,25 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook }) => {
               <FolderOpen size={48} className="mb-4 opacity-40" />
               <p className="text-[16px] text-neutral-300 font-medium">No books found</p>
               <p className="text-[13px] text-neutral-500 mt-1 max-w-sm">
-                Add an EPUB, PDF, or Comic archive using the [+ Add Book] button above.
+                Add EPUB, PDF, or Comic archives via single/bulk file selection, drag-and-drop, or folder scanning.
               </p>
-              <button
-                type="button"
-                onClick={handleAddBook}
-                className="mt-5 px-4 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white text-[13px] font-medium transition-colors cursor-pointer"
-              >
-                + Add Book
-              </button>
+              <div className="flex items-center gap-3 mt-5">
+                <button
+                  type="button"
+                  onClick={handleAddBook}
+                  className="px-4 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white text-[13px] font-medium transition-colors cursor-pointer"
+                >
+                  + Add Book
+                </button>
+                <button
+                  type="button"
+                  onClick={handleScanFolder}
+                  className="px-4 py-2 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white text-[13px] font-medium border border-white/10 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <FolderSearch size={14} />
+                  Scan Folder
+                </button>
+              </div>
             </div>
           ) : viewMode === 'list' ? (
             /* List View */

@@ -30,14 +30,10 @@ pub fn get_recent_reads(
     db::get_recent_reads(&conn, lim).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn import_book(
-    state: State<'_, DbState>,
-    file_path: String,
-) -> Result<BookWithProgress, String> {
-    let path = Path::new(&file_path);
+pub fn import_book_internal(conn: &Connection, file_path: &str) -> Result<BookWithProgress, String> {
+    let path = Path::new(file_path);
     let (meta, final_path) = if path.exists() {
-        (extract_metadata(path)?, file_path.clone())
+        (extract_metadata(path)?, file_path.to_string())
     } else {
         let stem = path
             .file_stem()
@@ -83,7 +79,7 @@ pub fn import_book(
         id: id.clone(),
         title: meta.title,
         author: meta.author,
-        file_path: final_path,
+        file_path: final_path.clone(),
         format: meta.format,
         cover_image: meta.cover_image,
         page_count: meta.page_count,
@@ -94,14 +90,77 @@ pub fn import_book(
         last_read_date: None,
     };
 
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    db::insert_book(&conn, &book).map_err(|e| e.to_string())?;
+    db::insert_book(conn, &book).map_err(|e| e.to_string())?;
 
-    match db::get_book(&conn, &id) {
+    match db::get_book(conn, &id) {
         Ok(Some(b)) => Ok(b),
-        Ok(None) => Err("Book inserted but could not be retrieved".to_string()),
+        Ok(None) => match db::get_book_by_path(conn, &final_path) {
+            Ok(Some(b)) => Ok(b),
+            _ => Err("Book inserted but could not be retrieved".to_string()),
+        },
         Err(e) => Err(e.to_string()),
     }
+}
+
+#[tauri::command]
+pub fn import_book(
+    state: State<'_, DbState>,
+    file_path: String,
+) -> Result<BookWithProgress, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    import_book_internal(&conn, &file_path)
+}
+
+#[tauri::command]
+pub fn import_multiple_books(
+    state: State<'_, DbState>,
+    file_paths: Vec<String>,
+) -> Result<Vec<BookWithProgress>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut imported = Vec::new();
+    for fp in file_paths {
+        match import_book_internal(&conn, &fp) {
+            Ok(book) => imported.push(book),
+            Err(e) => eprintln!("Failed to import book at '{}': {}", fp, e),
+        }
+    }
+    Ok(imported)
+}
+
+fn collect_book_paths_recursively(dir: &Path, results: &mut Vec<String>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_book_paths_recursively(&path, results);
+            } else if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    let ext_lower = ext.to_lowercase();
+                    if matches!(ext_lower.as_str(), "epub" | "pdf" | "cbz" | "cbr") {
+                        if let Some(path_str) = path.to_str() {
+                            results.push(path_str.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn scan_directory_books(dir_path: String) -> Result<Vec<String>, String> {
+    let root = Path::new(&dir_path);
+    if !root.exists() {
+        return Err(format!("Directory does not exist: {}", dir_path));
+    }
+    if !root.is_dir() {
+        return Err(format!("Path is not a directory: {}", dir_path));
+    }
+
+    let mut book_paths = Vec::new();
+    collect_book_paths_recursively(root, &mut book_paths);
+    book_paths.sort();
+    Ok(book_paths)
 }
 
 #[tauri::command]
@@ -232,4 +291,61 @@ pub fn record_reading_session(
 pub fn get_reading_stats(state: State<'_, DbState>) -> Result<ReadingStats, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     db::get_reading_stats(&conn).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::{self, File};
+
+    #[test]
+    fn test_scan_directory_books() {
+        let temp_dir = std::env::temp_dir().join(format!("aquile_scan_test_{}", std::process::id()));
+        let sub_dir = temp_dir.join("subfolder");
+        fs::create_dir_all(&sub_dir).unwrap();
+
+        // Create test book files
+        File::create(temp_dir.join("book1.epub")).unwrap();
+        File::create(temp_dir.join("book2.PDF")).unwrap();
+        File::create(sub_dir.join("comic.cbz")).unwrap();
+        File::create(sub_dir.join("comic2.cbr")).unwrap();
+
+        // Create non-book files
+        File::create(temp_dir.join("notes.txt")).unwrap();
+        File::create(sub_dir.join("cover.png")).unwrap();
+
+        let scanned = scan_directory_books(temp_dir.to_str().unwrap().to_string()).unwrap();
+        assert_eq!(scanned.len(), 4);
+        assert!(scanned.iter().any(|p| p.ends_with("book1.epub")));
+        assert!(scanned.iter().any(|p| p.ends_with("book2.PDF")));
+        assert!(scanned.iter().any(|p| p.ends_with("comic.cbz")));
+        assert!(scanned.iter().any(|p| p.ends_with("comic2.cbr")));
+
+        // Clean up
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_import_multiple_books_internal() {
+        let temp_dir = std::env::temp_dir().join(format!("aquile_import_test_{}", std::process::id()));
+        let db_file = temp_dir.join("test.db");
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let conn = db::init_db(&db_file).unwrap();
+        let paths = vec![
+            "catalog-book-1.epub".to_string(),
+            "catalog-book-2.pdf".to_string(),
+        ];
+
+        let mut imported = Vec::new();
+        for p in &paths {
+            let book = import_book_internal(&conn, p).unwrap();
+            imported.push(book);
+        }
+        assert_eq!(imported.len(), 2);
+        assert_eq!(imported[0].format, "epub");
+        assert_eq!(imported[1].format, "pdf");
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 }

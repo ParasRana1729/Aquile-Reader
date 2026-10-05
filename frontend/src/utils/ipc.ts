@@ -129,6 +129,55 @@ export async function importBook(filePath: string): Promise<BookWithProgress> {
   return newBook;
 }
 
+export async function importMultipleBooks(filePaths: string[]): Promise<BookWithProgress[]> {
+  if (isTauriEnv) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<BookWithProgress[]>('import_multiple_books', { filePaths });
+    } catch (e) {
+      console.warn('Tauri import_multiple_books failed:', e);
+    }
+  }
+
+  // Web fallback
+  const results: BookWithProgress[] = [];
+  for (const filePath of filePaths) {
+    const filename = filePath.split('/').pop() || 'Imported Book';
+    const newBook: BookWithProgress = {
+      id: `book-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      title: filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+      author: 'Local File',
+      filePath,
+      format: (filePath.split('.').pop() || 'epub').toLowerCase(),
+      coverImage: null,
+      pageCount: 100,
+      chapterCount: 5,
+      fileSize: 1024000,
+      isFavorite: false,
+      addedDate: new Date().toISOString(),
+      lastReadDate: null,
+      percentage: 0,
+      position: null,
+    };
+    cachedMemoryBooks.unshift(newBook);
+    results.push(newBook);
+  }
+  return results;
+}
+
+export async function scanDirectoryBooks(dirPath: string): Promise<string[]> {
+  if (isTauriEnv) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<string[]>('scan_directory_books', { dirPath });
+    } catch (e) {
+      console.warn('Tauri scan_directory_books failed:', e);
+      throw e;
+    }
+  }
+  return [];
+}
+
 export async function deleteBook(bookId: string): Promise<void> {
   if (isTauriEnv) {
     try {
@@ -199,6 +248,49 @@ export async function pickBookFile(): Promise<string | null> {
       }
     } catch (e) {
       console.warn('Dialog open failed:', e);
+    }
+  }
+  return null;
+}
+
+export async function pickBookFiles(): Promise<string[]> {
+  if (isTauriEnv) {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        multiple: true,
+        filters: [
+          {
+            name: 'Supported Books (*.epub, *.pdf, *.cbz, *.cbr)',
+            extensions: ['epub', 'pdf', 'cbz', 'cbr'],
+          },
+        ],
+      });
+      if (Array.isArray(selected)) {
+        return selected;
+      } else if (typeof selected === 'string') {
+        return [selected];
+      }
+    } catch (e) {
+      console.warn('Dialog open multiple failed:', e);
+    }
+  }
+  return [];
+}
+
+export async function pickFolder(): Promise<string | null> {
+  if (isTauriEnv) {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        directory: true,
+        multiple: false,
+      });
+      if (typeof selected === 'string') {
+        return selected;
+      }
+    } catch (e) {
+      console.warn('Dialog folder open failed:', e);
     }
   }
   return null;

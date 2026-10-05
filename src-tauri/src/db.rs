@@ -325,6 +325,40 @@ pub fn get_book(conn: &Connection, book_id: &str) -> Result<Option<BookWithProgr
     }
 }
 
+pub fn get_book_by_path(conn: &Connection, file_path: &str) -> Result<Option<BookWithProgress>> {
+    let mut stmt = conn.prepare(
+        "SELECT b.id, b.title, b.author, b.file_path, b.format, b.cover_image,
+                b.page_count, b.chapter_count, b.file_size, b.is_favorite,
+                b.added_date, b.last_read_date,
+                COALESCE(p.percentage, 0.0) as percentage, p.position
+         FROM books b
+         LEFT JOIN reading_progress p ON b.id = p.book_id
+         WHERE b.file_path = ?1",
+    )?;
+
+    let mut rows = stmt.query(params![file_path])?;
+    if let Some(row) = rows.next()? {
+        Ok(Some(BookWithProgress {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            author: row.get(2)?,
+            file_path: row.get(3)?,
+            format: row.get(4)?,
+            cover_image: row.get(5)?,
+            page_count: row.get(6)?,
+            chapter_count: row.get(7)?,
+            file_size: row.get(8)?,
+            is_favorite: row.get::<_, i64>(9)? != 0,
+            added_date: row.get(10)?,
+            last_read_date: row.get(11)?,
+            percentage: row.get(12)?,
+            position: row.get(13)?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn get_recent_reads(conn: &Connection, limit: usize) -> Result<Vec<BookWithProgress>> {
     let mut stmt = conn.prepare(
         "SELECT b.id, b.title, b.author, b.file_path, b.format, b.cover_image,
