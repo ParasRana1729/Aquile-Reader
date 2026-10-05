@@ -47,6 +47,14 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   // Jump / Navigate ref
   const navigateTo = useCallback((target: string | number) => {
     if (!renditionRef.current) return;
+    if (target === 'next') {
+      renditionRef.current.next();
+      return;
+    }
+    if (target === 'prev') {
+      renditionRef.current.prev();
+      return;
+    }
     if (typeof target === 'string') {
       renditionRef.current.display(target);
     } else if (typeof target === 'number' && bookRef.current) {

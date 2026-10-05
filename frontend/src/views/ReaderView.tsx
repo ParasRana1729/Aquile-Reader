@@ -18,6 +18,7 @@ import {
   BookmarksDrawer,
   AnnotationsDrawer,
   SearchOverlay,
+  TTSBar,
   useReadingSession,
 } from '../components/reader';
 import {
@@ -31,6 +32,7 @@ import {
   removeAnnotation,
   recordReadingSession,
 } from '../utils/ipc';
+import { ttsEngine } from '../utils/tts';
 import { PdfSearchResult } from '../components/reader/PdfViewer';
 import { EpubSearchResult } from '../components/reader/EpubViewer';
 
@@ -127,6 +129,17 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const sessionStartTimeRef = useRef<string>(new Date().toISOString());
   const lastRecordedSecondsRef = useRef<number>(0);
 
+  // Synchronized state references for TTS callbacks
+  const isReadingAloudRef = useRef(isReadingAloud);
+  useEffect(() => {
+    isReadingAloudRef.current = isReadingAloud;
+  }, [isReadingAloud]);
+
+  const currentModeRef = useRef(currentMode);
+  useEffect(() => {
+    currentModeRef.current = currentMode;
+  }, [currentMode]);
+
   // Resolve binary content / blob URL
   useEffect(() => {
     let isCancelled = false;
@@ -194,6 +207,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     },
   });
 
+  const currentPageRef = useRef(currentPage);
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  const totalPagesRef = useRef(totalPages);
+  useEffect(() => {
+    totalPagesRef.current = totalPages;
+  }, [totalPages]);
+
   // Flush reading session on unmount or navigation back
   useEffect(() => {
     return () => {
@@ -241,47 +264,132 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
   };
 
-  // ReadAloud TTS Implementation
-  const handleToggleReadAloud = () => {
-    if (!('speechSynthesis' in window)) {
-      alert('Speech synthesis is not supported in this browser.');
-      return;
-    }
+  /**
+   * Extract readable text of the current page / active spine item across engines
+   */
+  const extractCurrentPageText = useCallback(
+    (pageNum: number, mode?: ReaderMode): string => {
+      // 1. User manual selection has highest priority
+      const selection = window.getSelection()?.toString().trim();
+      if (selection) return selection;
 
+      const activeMode = mode || currentModeRef.current;
+
+      // 2. Sanctum Mode
+      if (activeMode === 'sanctum') {
+        const pageEl = document.querySelector(`article[data-page-number="${pageNum}"]`);
+        if (pageEl) {
+          const paragraphs = Array.from(pageEl.querySelectorAll('p'))
+            .map((p) => p.textContent?.trim() || '')
+            .filter(Boolean);
+          if (paragraphs.length > 0) return paragraphs.join('\n\n');
+          if (pageEl.textContent?.trim()) return pageEl.textContent.trim();
+        }
+        // Fallback to any article or sanctum page
+        const anyArticle = document.querySelector('article');
+        if (anyArticle?.textContent?.trim()) {
+          return anyArticle.textContent.trim();
+        }
+      }
+
+      // 3. PDF Mode
+      if (activeMode === 'pdf') {
+        const pageEl = document.querySelector(`div[data-page-number="${pageNum}"]`);
+        if (pageEl) {
+          const textLayer = pageEl.querySelector('.textLayer');
+          const text = textLayer?.textContent?.trim() || pageEl.textContent?.trim();
+          if (text) return text;
+        }
+      }
+
+      // 4. EPUB Mode
+      if (activeMode === 'epub') {
+        const iframe = document.querySelector('iframe');
+        if (iframe?.contentDocument?.body) {
+          const iframeSelection = iframe.contentDocument.getSelection()?.toString().trim();
+          if (iframeSelection) return iframeSelection;
+          const bodyText =
+            iframe.contentDocument.body.innerText?.trim() ||
+            iframe.contentDocument.body.textContent?.trim();
+          if (bodyText) return bodyText;
+        }
+      }
+
+      // 5. Generic viewport fallback
+      const mainEl = document.querySelector('main');
+      if (mainEl?.innerText?.trim()) {
+        const text = mainEl.innerText.trim();
+        if (text.length > 20) return text;
+      }
+
+      return `${effectiveTitle}. Reading page ${pageNum} of ${totalPagesRef.current}.`;
+    },
+    [effectiveTitle]
+  );
+
+  // Auto-advance page when TTS narration finishes
+  useEffect(() => {
+    const unsubscribe = ttsEngine.onEnd(() => {
+      if (!isReadingAloudRef.current) return;
+
+      const cur = currentPageRef.current;
+      const tot = totalPagesRef.current;
+      const mode = currentModeRef.current;
+
+      if (cur < tot) {
+        const nextPage = cur + 1;
+
+        if (mode === 'sanctum' || mode === 'pdf' || mode === 'comic') {
+          if (jumpToPageRef.current) {
+            jumpToPageRef.current(nextPage);
+          }
+          updateProgress(nextPage, tot);
+        } else if (mode === 'epub') {
+          if (epubNavigateRef.current) {
+            epubNavigateRef.current('next');
+          }
+        }
+
+        // Wait for page rendering to complete, then read the next page
+        setTimeout(() => {
+          if (isReadingAloudRef.current) {
+            const nextText = extractCurrentPageText(nextPage, mode);
+            ttsEngine.play(nextText);
+          }
+        }, 500);
+      } else {
+        // Reached the end of book
+        setIsReadingAloud(false);
+        ttsEngine.stop();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [updateProgress, extractCurrentPageText]);
+
+  // ReadAloud TTS Toggle
+  const handleToggleReadAloud = () => {
     if (isReadingAloud) {
-      window.speechSynthesis.cancel();
+      ttsEngine.stop();
       setIsReadingAloud(false);
     } else {
-      const textToRead =
-        window.getSelection()?.toString().trim() ||
-        `${effectiveTitle}. Reading page ${currentPage} of ${totalPages}.`;
-
-      const utterance = new SpeechSynthesisUtterance(textToRead);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.onend = () => setIsReadingAloud(false);
-      utterance.onerror = () => setIsReadingAloud(false);
-
-      window.speechSynthesis.speak(utterance);
       setIsReadingAloud(true);
+      const text = extractCurrentPageText(currentPage);
+      ttsEngine.play(text);
     }
   };
 
   const handleSpeakText = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.onend = () => setIsReadingAloud(false);
-    utterance.onerror = () => setIsReadingAloud(false);
-    window.speechSynthesis.speak(utterance);
     setIsReadingAloud(true);
+    ttsEngine.play(text);
   };
 
+  // Ensure TTS is stopped on unmount
   useEffect(() => {
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      ttsEngine.stop();
     };
   }, []);
 
@@ -535,6 +643,22 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         onPrevMatch={handlePrevMatch}
         matchIndex={matchIndex}
         matchCount={searchResults.length}
+      />
+
+      {/* Sleek Floating Text-To-Speech Bar */}
+      <TTSBar
+        isOpen={isReadingAloud}
+        onClose={() => {
+          setIsReadingAloud(false);
+          ttsEngine.stop();
+        }}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        theme={settings.theme}
+        onPlayRequest={() => {
+          const text = extractCurrentPageText(currentPage);
+          ttsEngine.play(text);
+        }}
       />
     </div>
   );

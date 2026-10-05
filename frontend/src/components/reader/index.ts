@@ -10,3 +10,4 @@ export * from './PdfViewer';
 export * from './EpubViewer';
 export * from './ComicViewer';
 export * from './ReadingSanctum';
+export * from './TTSBar';
