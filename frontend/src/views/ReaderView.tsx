@@ -80,11 +80,28 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [isResolving, setIsResolving] = useState<boolean>(true);
   const blobUrlRef = useRef<string | null>(null);
 
-  // Settings
+  // Settings & Appearance state management with localStorage persistence
   const [settings, setSettings] = useState<ReaderSettings>(() => {
     try {
       const saved = localStorage.getItem('aquile_reader_settings');
-      if (saved) return { ...DEFAULT_READER_SETTINGS, ...JSON.parse(saved) };
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Normalize margin if string
+        let marginVal = parsed.margin;
+        if (typeof marginVal !== 'number') {
+          marginVal = marginVal === 'compact' ? 20 : marginVal === 'wide' ? 64 : 36;
+        }
+        const spreadMode = parsed.spreadMode || (parsed.isTwoColumn ? 'dual' : 'single');
+        const isTwoColumn = spreadMode === 'dual' || !!parsed.isTwoColumn;
+
+        return {
+          ...DEFAULT_READER_SETTINGS,
+          ...parsed,
+          margin: marginVal,
+          spreadMode,
+          isTwoColumn,
+        };
+      }
     } catch {
       // ignore
     }
@@ -234,10 +251,17 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     };
   }, [effectiveId, activeReadingSeconds, wordsRead]);
 
-  // Persist settings changes
+  // Persist settings & appearance changes
   const handleUpdateSettings = (updates: Partial<ReaderSettings>) => {
     setSettings((prev) => {
-      const next = { ...prev, ...updates };
+      const synched = { ...updates };
+      if (updates.spreadMode !== undefined && updates.isTwoColumn === undefined) {
+        synched.isTwoColumn = updates.spreadMode === 'dual';
+      } else if (updates.isTwoColumn !== undefined && updates.spreadMode === undefined) {
+        synched.spreadMode = updates.isTwoColumn ? 'dual' : 'single';
+      }
+
+      const next = { ...prev, ...synched };
       try {
         localStorage.setItem('aquile_reader_settings', JSON.stringify(next));
       } catch {

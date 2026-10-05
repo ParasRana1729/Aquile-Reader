@@ -3,7 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import { PageBoundaryBadge } from './PageBoundaryBadge';
-import { ReaderSettings, ReadingTheme, READER_THEMES } from '../../types/reader';
+import { ReaderSettings, READER_THEMES } from '../../types/reader';
 
 // Configure worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -48,6 +48,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const renderedPages = useRef<Set<number>>(new Set());
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
+  const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
 
   // Jump to specific page handler
   const jumpToPage = useCallback((pageNum: number) => {
@@ -241,15 +242,37 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     return () => observer.disconnect();
   }, [pages, onPageChange, renderPage]);
 
-  // Re-render when zoom changes
+  // Re-render when zoom, spreadMode or isTwoColumn changes
   useEffect(() => {
     renderedPages.current.clear();
-    pageRefs.current.forEach((el, pageNum) => {
-      if (el) {
-        renderPage(pageNum, el);
-      }
-    });
-  }, [settings.zoom, renderPage]);
+    const timer = setTimeout(() => {
+      pageRefs.current.forEach((el, pageNum) => {
+        if (el) {
+          renderPage(pageNum, el);
+        }
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [settings.zoom, settings.spreadMode, settings.isTwoColumn, renderPage]);
+
+  // Re-render on window resize to fit responsive container width
+  useEffect(() => {
+    let resizeTimer: any;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        renderedPages.current.clear();
+        pageRefs.current.forEach((el, pageNum) => {
+          if (el) renderPage(pageNum, el);
+        });
+      }, 150);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, [renderPage]);
 
   if (loading) {
     return (
@@ -280,11 +303,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         color: currentTheme.text,
       }}
     >
+      {/* Two-page spread mode: grid grid-cols-2 side-by-side vs single column */}
       <div
-        className={`mx-auto py-12 px-4 transition-all duration-300 ${
-          settings.isTwoColumn
-            ? 'grid grid-cols-1 md:grid-cols-2 gap-8 max-w-7xl'
-            : 'flex flex-col items-center max-w-4xl'
+        className={`mx-auto py-12 transition-all duration-300 ${
+          isDual
+            ? 'grid grid-cols-2 gap-6 max-w-7xl px-6'
+            : 'flex flex-col items-center max-w-4xl px-4'
         }`}
       >
         {pages.map((p) => (
@@ -311,7 +335,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               <div className="textLayer absolute inset-0 select-text pointer-events-auto" />
             </div>
 
-            {/* Continuous Page Boundary Badge (matching win_005 - win_012) */}
+            {/* Continuous Page Boundary Badge */}
             <PageBoundaryBadge
               currentPage={p.pageNumber}
               totalPages={pages.length}

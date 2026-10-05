@@ -3,10 +3,10 @@ import { PageBoundaryBadge } from './PageBoundaryBadge';
 import {
   ReaderSettings,
   READER_THEMES,
-  FONT_FAMILIES,
   Annotation,
+  getFontFamilyCss,
 } from '../../types/reader';
-import { Highlighter, MessageSquare, Copy, Volume2 } from 'lucide-react';
+import { Copy, Volume2 } from 'lucide-react';
 
 interface ReadingSanctumProps {
   bookTitle?: string;
@@ -49,7 +49,13 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
   }>({ visible: false, x: 0, y: 0, text: '', pageNum: 1 });
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
-  const currentFont = FONT_FAMILIES[settings.fontFamily] || FONT_FAMILIES.serif;
+  const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
+  const fontCss = getFontFamilyCss(settings.fontFamily, settings.customFont);
+  const marginPx = typeof settings.margin === 'number' ? settings.margin : 36;
+  const lineSpacing = settings.lineSpacing || 1.6;
+  const letterSpacingPx = `${settings.letterSpacing ?? 0}px`;
+  const paragraphSpacingPx = `${settings.paragraphSpacing ?? 16}px`;
+  const textAlign = settings.textAlign || 'justify';
 
   // Jump to specific page
   const jumpToPage = useCallback((pageNum: number) => {
@@ -65,28 +71,12 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
     }
   }, [onJumpToPageRef, jumpToPage]);
 
-  // Margin container widths
-  const getMarginClass = () => {
-    if (settings.isTwoColumn) {
-      return settings.margin === 'compact'
-        ? 'max-w-6xl px-4'
-        : settings.margin === 'wide'
-        ? 'max-w-7xl px-16'
-        : 'max-w-7xl px-8';
-    }
-    return settings.margin === 'compact'
-      ? 'max-w-2xl px-4'
-      : settings.margin === 'wide'
-      ? 'max-w-4xl px-12'
-      : 'max-w-3xl px-6';
-  };
-
   // The Prince page sequence matching Windows B0 (win_004 - win_014)
   const pagesData: ChapterPage[] = [
     {
       pageNumber: 22,
       paragraphs: [
-        'DEDICATION. TO THE MAGNIFICENT LORENZO DI PIERO DE’ MEDICI.',
+        'DEDICATION. TO THE MAGNIFICENT LORENZO DI PIERO DE\u2019 MEDICI.',
         'Those who strive to obtain the good graces of a prince are accustomed to come before him with such things as they hold most dear, or in which they see him take most delight: whence one often sees them presented with horses, arms, cloth of gold, precious stones, and similar ornaments worthy of their greatness.',
         'Desiring then to present myself to your Magnificence with some token of my devotion towards you, I have found nothing amongst my possessions the which I value or esteem so much as the knowledge of the actions of great men, acquired by long experience in contemporary affairs, and a continual study of antiquity.',
       ],
@@ -114,7 +104,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
     {
       pageNumber: 25,
       paragraphs: [
-        'We have in Italy, for example, the Duke of Ferrara, who could not have withstood the attacks of the Venetians in ’84, nor those of Pope Julius in ’10, unless he had been long established in his dominions.',
+        'We have in Italy, for example, the Duke of Ferrara, who could not have withstood the attacks of the Venetians in \u201984, nor those of Pope Julius in \u201910, unless he had been long established in his dominions.',
         'For the hereditary prince has less cause and less necessity to offend; hence it happens that he will be more loved; and unless extraordinary vices cause him to be hated, it is reasonable to expect that his subjects will be naturally well disposed towards him; and in the antiquity and duration of his rule the memories and motives that make for change are lost, for one change always leaves the toothing for another.',
       ],
     },
@@ -131,7 +121,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
     {
       pageNumber: 27,
       paragraphs: [
-        'For these reasons Louis the Twelfth, King of France, quickly occupied Milan, and as quickly lost it; and to turn him out the first time it only needed Lodovico’s own forces; because those who had opened the gates to him, finding themselves deceived in their hopes of future benefit, would not endure the ill-treatment of the new prince.',
+        'For these reasons Louis the Twelfth, King of France, quickly occupied Milan, and as quickly lost it; and to turn him out the first time it only needed Lodovico\u2019s own forces; because those who had opened the gates to him, finding themselves deceived in their hopes of future benefit, would not endure the ill-treatment of the new prince.',
         'It is very true that, after acquiring rebellious provinces a second time, they are not so lightly lost afterwards, because the prince, with little reluctance, takes the opportunity of the rebellion to punish the delinquents, to clear out the suspects, and to strengthen himself in the weakest places.',
         'Thus to cause France to lose Milan the first time it was enough for the Duke Lodovico to raise insurrections on the borders; but to cause him to lose it a second time it was necessary to bring the whole world against him, and that his armies should be defeated and driven out of Italy; which followed from the causes above mentioned.',
       ],
@@ -261,7 +251,15 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
       )}
 
       {/* Main Reading Canvas Container */}
-      <div className={`mx-auto py-16 transition-all duration-300 ${getMarginClass()}`}>
+      <div
+        className={`mx-auto py-16 transition-all duration-300 ${
+          isDual ? 'max-w-7xl' : 'max-w-4xl'
+        }`}
+        style={{
+          paddingLeft: `${marginPx}px`,
+          paddingRight: `${marginPx}px`,
+        }}
+      >
         {pagesData.map((page) => (
           <article
             key={page.pageNumber}
@@ -272,9 +270,11 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
             data-page-number={page.pageNumber}
             className="w-full my-6 transition-all duration-200"
             style={{
-              fontFamily: currentFont.cssFamily,
+              fontFamily: fontCss,
               fontSize: `${settings.fontSize}px`,
-              lineHeight: `${settings.lineSpacing}`,
+              lineHeight: `${lineSpacing}`,
+              letterSpacing: letterSpacingPx,
+              textAlign: textAlign,
             }}
           >
             {/* Document Header (matching win_004 & win_005) */}
@@ -292,6 +292,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
                 style={{
                   fontSize: `${Math.round(settings.fontSize * 1.35)}px`,
                   borderColor: currentTheme.border,
+                  letterSpacing: letterSpacingPx,
                 }}
               >
                 {page.chapterTitle}
@@ -300,18 +301,21 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
 
             {/* Paragraphs in 1-column or 2-column layout */}
             <div
-              className={`space-y-6 ${
-                settings.isTwoColumn ? 'columns-1 md:columns-2 gap-12' : ''
+              className={`transition-all duration-200 ${
+                isDual ? 'columns-1 md:columns-2 gap-12' : ''
               }`}
             >
               {page.paragraphs.map((para, pIndex) => (
                 <p
                   key={pIndex}
-                  className="indent-8 text-justify transition-colors duration-200"
+                  className="indent-8 transition-colors duration-200"
                   style={{
                     color: currentTheme.text,
                     fontSize: `${settings.fontSize}px`,
-                    lineHeight: `${settings.lineSpacing}`,
+                    lineHeight: `${lineSpacing}`,
+                    letterSpacing: letterSpacingPx,
+                    marginBottom: paragraphSpacingPx,
+                    textAlign: textAlign,
                   }}
                 >
                   {para}
@@ -319,7 +323,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
               ))}
             </div>
 
-            {/* Centered Page Boundary Badging (*"23 of 239"*, *"26 of 239"*) flanked by subtle horizontal hairline rules */}
+            {/* Centered Page Boundary Badging flanked by subtle horizontal hairline rules */}
             <PageBoundaryBadge
               currentPage={page.pageNumber}
               totalPages={totalPages}

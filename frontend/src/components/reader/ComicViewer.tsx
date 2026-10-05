@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import JSZip from 'jszip';
 import { PageBoundaryBadge } from './PageBoundaryBadge';
 import { ReaderSettings, READER_THEMES } from '../../types/reader';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface ComicPage {
   index: number;
@@ -32,10 +32,9 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(settings.zoom || 1.0);
-  const [isContinuousScroll, setIsContinuousScroll] = useState(true);
-  const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
+  const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Jump to specific page
@@ -187,7 +186,7 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
   // Spread 2: [Page 4, Page 5] ...
   const spreads: ComicPage[][] = React.useMemo(() => {
     if (comicPages.length === 0) return [];
-    if (!settings.isTwoColumn) {
+    if (!isDual) {
       // 1-column mode: each page is its own spread
       return comicPages.map((p) => [p]);
     }
@@ -205,7 +204,7 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
       }
     }
     return list;
-  }, [comicPages, settings.isTwoColumn]);
+  }, [comicPages, isDual]);
 
   // Intersection observer for continuous scroll
   useEffect(() => {
@@ -234,24 +233,6 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
 
     return () => observer.disconnect();
   }, [comicPages, onPageChange]);
-
-  const handleNextSpread = () => {
-    setCurrentSpreadIndex((prev) => {
-      const next = Math.min(spreads.length - 1, prev + 1);
-      const targetPage = spreads[next][0].index;
-      jumpToPage(targetPage);
-      return next;
-    });
-  };
-
-  const handlePrevSpread = () => {
-    setCurrentSpreadIndex((prev) => {
-      const next = Math.max(0, prev - 1);
-      const targetPage = spreads[next][0].index;
-      jumpToPage(targetPage);
-      return next;
-    });
-  };
 
   if (loading) {
     return (
@@ -359,7 +340,7 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
                 ))}
               </div>
 
-              {/* Page Boundary Badge (matching win_005 - win_012) */}
+              {/* Page Boundary Badge */}
               <PageBoundaryBadge
                 currentPage={spread[0].index}
                 totalPages={comicPages.length}

@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { Book, Rendition } from 'epubjs';
-import { PageBoundaryBadge } from './PageBoundaryBadge';
 import {
   ReaderSettings,
   READER_THEMES,
-  FONT_FAMILIES,
   TOCItem,
+  getFontFamilyCss,
 } from '../../types/reader';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -42,7 +41,6 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
-  const currentFont = FONT_FAMILIES[settings.fontFamily] || FONT_FAMILIES.serif;
 
   // Jump / Navigate ref
   const navigateTo = useCallback((target: string | number) => {
@@ -101,33 +99,39 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     }
   }, [onSearchRef, searchEpub]);
 
-  // Apply theme & font customization
+  // Apply theme & font & typography customization
   const applyStyles = useCallback(() => {
     if (!renditionRef.current) return;
     const rend = renditionRef.current;
+    const fontCss = getFontFamilyCss(settings.fontFamily, settings.customFont);
+    const letterSpacing = `${settings.letterSpacing ?? 0}px`;
+    const paraSpacing = `${settings.paragraphSpacing ?? 16}px`;
+    const align = settings.textAlign || 'justify';
+    const marginPx = typeof settings.margin === 'number' ? settings.margin : 32;
 
     const themeRules = {
       body: {
         'background-color': `${currentTheme.bg} !important`,
         color: `${currentTheme.text} !important`,
-        'font-family': `${currentFont.cssFamily} !important`,
+        'font-family': `${fontCss} !important`,
         'font-size': `${settings.fontSize}px !important`,
         'line-height': `${settings.lineSpacing} !important`,
+        'letter-spacing': `${letterSpacing} !important`,
+        'text-align': `${align} !important`,
         margin: '0 auto !important',
-        padding:
-          settings.margin === 'compact'
-            ? '1rem !important'
-            : settings.margin === 'wide'
-            ? '3rem !important'
-            : '2rem !important',
+        padding: `0 ${marginPx}px !important`,
       },
       p: {
         'line-height': `${settings.lineSpacing} !important`,
+        'letter-spacing': `${letterSpacing} !important`,
+        'text-align': `${align} !important`,
+        'margin-bottom': `${paraSpacing} !important`,
         color: `${currentTheme.text} !important`,
       },
       'h1, h2, h3, h4, h5, h6': {
         color: `${currentTheme.text} !important`,
-        'font-family': `${currentFont.cssFamily} !important`,
+        'font-family': `${fontCss} !important`,
+        'letter-spacing': `${letterSpacing} !important`,
       },
       a: {
         color: 'inherit !important',
@@ -141,7 +145,17 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
 
     rend.themes.register('custom-aquile', themeRules);
     rend.themes.select('custom-aquile');
-  }, [currentTheme, currentFont, settings.fontSize, settings.lineSpacing, settings.margin]);
+  }, [
+    currentTheme,
+    settings.fontFamily,
+    settings.customFont,
+    settings.fontSize,
+    settings.lineSpacing,
+    settings.letterSpacing,
+    settings.paragraphSpacing,
+    settings.textAlign,
+    settings.margin,
+  ]);
 
   // Initialize ePub
   useEffect(() => {
@@ -154,11 +168,12 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     const book = ePub(url);
     bookRef.current = book;
 
+    const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
     const rendition = book.renderTo(viewerRef.current, {
       width: '100%',
       height: '100%',
       flow: 'paginated',
-      spread: settings.isTwoColumn ? 'always' : 'none',
+      spread: isDual ? 'always' : 'none',
       minSpreadWidth: 768,
     });
     renditionRef.current = rendition;
@@ -227,12 +242,19 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     applyStyles();
   }, [applyStyles]);
 
-  // Handle spread updates
+  // Handle two-column spread layout toggle & resize
   useEffect(() => {
     if (renditionRef.current) {
-      renditionRef.current.spread(settings.isTwoColumn ? 'always' : 'none');
+      const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
+      renditionRef.current.spread(isDual ? 'always' : 'none');
+      if (viewerRef.current) {
+        renditionRef.current.resize(
+          viewerRef.current.clientWidth || window.innerWidth,
+          viewerRef.current.clientHeight || window.innerHeight
+        );
+      }
     }
-  }, [settings.isTwoColumn]);
+  }, [settings.spreadMode, settings.isTwoColumn]);
 
   // Keyboard navigation
   useEffect(() => {

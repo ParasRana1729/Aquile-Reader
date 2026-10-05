@@ -16,7 +16,7 @@ import {
   ArrowLeft,
   ChevronDown,
 } from 'lucide-react';
-import { ReaderSettings, ReaderMode, ReadingTheme, READER_THEMES } from '../../types/reader';
+import { ReaderSettings, ReaderMode, READER_THEMES } from '../../types/reader';
 import { AppearancePopover } from './AppearancePopover';
 
 interface FloatingToolbarProps {
@@ -79,6 +79,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
   const isDark = currentTheme.isDark;
+  const isDualSpread = settings.spreadMode === 'dual' || settings.isTwoColumn;
 
   // Auto-hiding logic: reveal on top-screen hover, auto-hide when idle
   useEffect(() => {
@@ -187,7 +188,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
           color: currentTheme.text,
         }}
       >
-        {/* Left Toolbar Controls (matching win_004) */}
+        {/* Left Toolbar Controls */}
         <div className="flex items-center gap-1">
           {onBack && (
             <button
@@ -289,7 +290,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
           )}
         </div>
 
-        {/* Right Toolbar Controls (matching win_004) */}
+        {/* Right Toolbar Controls */}
         <div className="flex items-center gap-1.5">
           {/* Search */}
           <button
@@ -337,12 +338,18 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             <ZoomIn size={16} />
           </button>
 
-          {/* Column Toggle (1 vs 2 cols) */}
+          {/* Spread Mode Toggle (Single Column vs 2-Column Spread) */}
           <button
             type="button"
-            onClick={() => onUpdateSettings({ isTwoColumn: !settings.isTwoColumn })}
-            className={buttonClass(settings.isTwoColumn)}
-            title={settings.isTwoColumn ? 'Switch to 1-Column' : 'Switch to 2-Column Spread (📖)'}
+            onClick={() => {
+              const nextVal = !isDualSpread;
+              onUpdateSettings({
+                isTwoColumn: nextVal,
+                spreadMode: nextVal ? 'dual' : 'single',
+              });
+            }}
+            className={buttonClass(isDualSpread)}
+            title={isDualSpread ? 'Switch to Single Column' : 'Switch to Two-Page Spread (📖)'}
           >
             <Columns size={16} />
           </button>
