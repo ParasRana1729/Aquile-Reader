@@ -7,7 +7,7 @@ import { ensureBookCover } from '../utils/pdfThumbnail';
 
 interface HomeViewProps {
   onOpenLibrary: () => void;
-  onOpenBook: (bookId: string) => void;
+  onOpenBook: (bookId: string, book?: BookWithProgress) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook }) => {
@@ -147,7 +147,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
             {/* Featured Hero Book Card with Luminous Halo Glow */}
             {heroBook && (
               <div
-                onClick={() => onOpenBook(heroBook.id)}
+                onClick={() => onOpenBook(heroBook.id, heroBook)}
                 className="relative cursor-pointer group rounded-[6px] overflow-hidden transition-all duration-300 transform hover:scale-[1.02] flex-shrink-0"
                 style={{
                   boxShadow: `0 0 28px rgba(255, 255, 255, 0.28), 0 8px 30px rgba(0, 0, 0, 0.65)`,
@@ -198,7 +198,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
               {secondaryRecents.map((book) => (
                 <div
                   key={book.id}
-                  onClick={() => onOpenBook(book.id)}
+                  onClick={() => onOpenBook(book.id, book)}
                   className="w-[125px] h-[160px] rounded-[5px] overflow-hidden cursor-pointer hover:scale-105 transition-all duration-200 border border-white/15 relative"
                   style={{
                     boxShadow: '0 4px 18px rgba(0, 0, 0, 0.45)',

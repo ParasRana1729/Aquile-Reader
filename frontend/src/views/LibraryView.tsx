@@ -35,7 +35,7 @@ import {
 import { ensureBookCover } from '../utils/pdfThumbnail';
 
 interface LibraryViewProps {
-  onOpenBook: (bookId: string) => void;
+  onOpenBook: (bookId: string, book?: BookWithProgress) => void;
   refreshTrigger?: number;
 }
 
@@ -507,7 +507,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
                     setSelectedBook(book);
                     setIsInspectorOpen(true);
                   }}
-                  onDoubleClick={() => onOpenBook(book.id)}
+                  onDoubleClick={() => onOpenBook(book.id, book)}
                   className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
                     selectedBook?.id === book.id
                       ? 'bg-white/15 border-white/30'
@@ -573,7 +573,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
                       setSelectedBook(book);
                       setIsInspectorOpen(true);
                     }}
-                    onDoubleClick={() => onOpenBook(book.id)}
+                    onDoubleClick={() => onOpenBook(book.id, book)}
                     className="group flex flex-col items-center cursor-pointer transition-all duration-200"
                   >
                     {/* Book Cover Card */}
@@ -701,7 +701,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => onOpenBook(selectedBook.id)}
+                onClick={() => onOpenBook(selectedBook.id, selectedBook)}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-[13px] font-semibold text-white transition-all shadow cursor-pointer"
                 style={{ backgroundColor: currentTheme.accent }}
               >

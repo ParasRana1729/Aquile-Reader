@@ -50,7 +50,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Layout measurements
-  const [containerWidth, setContainerWidth] = useState<number>(800);
+  const [containerWidth, setContainerWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth > 0) {
+      return window.innerWidth;
+    }
+    return 800;
+  });
 
   // Virtualization window tracking
   const [visibleRange, setVisibleRange] = useState<{ min: number; max: number }>({ min: 1, max: 1 });
@@ -425,7 +430,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full w-full space-y-3">
+      <div
+        className="flex flex-col items-center justify-center h-full w-full space-y-3"
+        style={{
+          backgroundColor: currentTheme.bg,
+          color: currentTheme.text,
+        }}
+      >
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         <span className="text-xs text-neutral-400 font-sans tracking-wide">
           Rendering PDF Sanctum...
@@ -454,7 +465,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     >
       {/* Two-page spread mode vs single column */}
       <div
-        className={`mx-auto py-12 transition-all duration-300 ${
+        className={`mx-auto py-12 ${
           isDual
             ? 'grid grid-cols-2 gap-6 max-w-7xl px-6'
             : 'flex flex-col items-center max-w-4xl px-4'
@@ -481,7 +492,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             >
               {/* Page Canvas Container with fixed placeholder aspect ratio */}
               <div
-                className="relative shadow-2xl transition-all duration-200 overflow-hidden"
+                className="relative shadow-2xl overflow-hidden"
                 style={{
                   width: `${computedPageWidth}px`,
                   minHeight: `${pageHeight}px`,

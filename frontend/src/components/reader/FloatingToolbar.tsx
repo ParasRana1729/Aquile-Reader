@@ -111,14 +111,14 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   return (
     <nav
       aria-label="Reader Options Toolbar"
-      className="w-full flex-shrink-0 z-40 select-none relative transition-colors duration-200"
+      className="w-full flex-shrink-0 z-40 select-none relative"
       style={{
-        backgroundColor: currentTheme.toolbarBg || '#2a2b2f',
-        borderColor: currentTheme.border || 'rgba(255, 255, 255, 0.08)',
+        backgroundColor: currentTheme.toolbarBg || '#2e2f34',
+        borderBottom: `1px solid ${currentTheme.border || '#333338'}`,
         color: currentTheme.text || '#ffffff',
       }}
     >
-      <div className="h-11 w-full flex items-center justify-between px-3 md:px-5 border-b border-inherit shadow-sm">
+      <div className="h-11 w-full flex items-center justify-between px-3 md:px-5">
         {/* Left Toolbar Controls (TOC, Notes, Bookmarks, Engine) */}
         <div className="flex items-center gap-1.5">
           {onBack && (

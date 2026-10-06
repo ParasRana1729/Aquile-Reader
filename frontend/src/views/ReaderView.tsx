@@ -6,6 +6,7 @@ import {
   TOCItem,
   Bookmark,
   Annotation,
+  READER_THEMES,
 } from '../types/reader';
 import { BookWithProgress } from '../types/book';
 import {
@@ -107,6 +108,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
     return DEFAULT_READER_SETTINGS;
   });
+
+  const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
 
   // Table of Contents
   const [toc, setToc] = useState<TOCItem[]>([
@@ -519,8 +522,14 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full w-full relative overflow-hidden select-text">
-      {/* Top Floating Overlay Toolbar */}
+    <div
+      className="flex flex-col h-full w-full relative overflow-hidden select-text"
+      style={{
+        backgroundColor: currentTheme.bg,
+        color: currentTheme.text,
+      }}
+    >
+      {/* Top Persistent Toolbar */}
       <FloatingToolbar
         bookTitle={effectiveTitle}
         settings={settings}
@@ -558,9 +567,20 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       />
 
       {/* Main Reader Content Area */}
-      <main className="flex-1 w-full min-h-0 relative overflow-hidden flex flex-col">
+      <main
+        className="flex-1 w-full min-h-0 relative overflow-hidden flex flex-col"
+        style={{
+          backgroundColor: currentTheme.bg,
+          color: currentTheme.text,
+        }}
+      >
         {isResolving ? (
-          <div className="flex flex-col items-center justify-center h-full w-full space-y-3">
+          <div
+            className="flex-1 w-full h-full flex flex-col items-center justify-center space-y-3"
+            style={{
+              backgroundColor: currentTheme.bg,
+            }}
+          >
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <span className="text-xs text-neutral-400 font-sans tracking-wide">
               Opening {effectiveTitle}...

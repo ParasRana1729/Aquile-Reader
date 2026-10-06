@@ -252,7 +252,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
 
       {/* Main Reading Canvas Container */}
       <div
-        className={`mx-auto py-16 transition-all duration-300 ${
+        className={`mx-auto py-16 ${
           isDual ? 'max-w-7xl' : 'max-w-4xl'
         }`}
         style={{
@@ -268,7 +268,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
               else pageRefs.current.delete(page.pageNumber);
             }}
             data-page-number={page.pageNumber}
-            className="w-full my-6 transition-all duration-200"
+            className="w-full my-6"
             style={{
               fontFamily: fontCss,
               fontSize: `${settings.fontSize}px`,
@@ -301,7 +301,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
 
             {/* Paragraphs in 1-column or 2-column layout */}
             <div
-              className={`transition-all duration-200 ${
+              className={`${
                 isDual ? 'columns-1 md:columns-2 gap-12' : ''
               }`}
             >

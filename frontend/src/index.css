@@ -21,7 +21,7 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: transparent;
+  background-color: #1f1f1f;
   color: #eaeaea;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

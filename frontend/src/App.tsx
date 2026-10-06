@@ -41,46 +41,52 @@ const MainShell: React.FC = () => {
     }, 4000);
   };
 
-  const handleOpenBook = async (bookId: string) => {
+  const handleOpenBook = (bookId: string, bookObj?: BookWithProgress) => {
     setCurrentBookId(bookId);
-    let book: BookWithProgress | undefined;
-    try {
-      const books = await fetchBooks();
-      book = books.find((b) => b.id === bookId);
-    } catch {
-      // ignore
-    }
 
-    if (book) {
-      setCurrentBook(book);
-      setCurrentBookTitle(book.title);
-      const fmt = (book.format || '').toUpperCase();
+    const applyBook = (b: BookWithProgress) => {
+      setCurrentBook(b);
+      setCurrentBookTitle(b.title);
+      const fmt = (b.format || '').toUpperCase();
       if (fmt === 'EPUB') setCurrentBookFormat('EPUB');
       else if (fmt === 'CBZ' || fmt === 'CBR' || fmt === 'COMIC') setCurrentBookFormat('COMIC');
       else setCurrentBookFormat('PDF');
+    };
+
+    if (bookObj) {
+      applyBook(bookObj);
+      setIsReading(true);
+      return;
+    }
+
+    // Set fallback title immediately so transition is instant
+    if (bookId.includes('the-prince')) {
+      setCurrentBookTitle('The Prince');
+      setCurrentBookFormat('PDF');
+    } else if (bookId.includes('mans-search')) {
+      setCurrentBookTitle("Man's Search For Meaning");
+      setCurrentBookFormat('EPUB');
+    } else if (bookId.includes('sherlock-holmes')) {
+      setCurrentBookTitle('The Adventures of Sherlock Holmes');
+      setCurrentBookFormat('EPUB');
+    } else if (bookId.includes('quick-start')) {
+      setCurrentBookTitle('Quick Start Guide');
+      setCurrentBookFormat('EPUB');
+    } else if (bookId.includes('comic')) {
+      setCurrentBookTitle('Sample Comic Book');
+      setCurrentBookFormat('COMIC');
     } else {
-      setCurrentBook(null);
-      if (bookId.includes('the-prince')) {
-        setCurrentBookTitle('The Prince');
-        setCurrentBookFormat('PDF');
-      } else if (bookId.includes('mans-search')) {
-        setCurrentBookTitle("Man's Search For Meaning");
-        setCurrentBookFormat('EPUB');
-      } else if (bookId.includes('sherlock-holmes')) {
-        setCurrentBookTitle('The Adventures of Sherlock Holmes');
-        setCurrentBookFormat('EPUB');
-      } else if (bookId.includes('quick-start')) {
-        setCurrentBookTitle('Quick Start Guide');
-        setCurrentBookFormat('EPUB');
-      } else if (bookId.includes('comic')) {
-        setCurrentBookTitle('Sample Comic Book');
-        setCurrentBookFormat('COMIC');
-      } else {
-        setCurrentBookTitle('Book Title');
-        setCurrentBookFormat('PDF');
-      }
+      setCurrentBookTitle('Book Title');
+      setCurrentBookFormat('PDF');
     }
     setIsReading(true);
+
+    fetchBooks().then((books) => {
+      const found = books.find((b) => b.id === bookId);
+      if (found) {
+        applyBook(found);
+      }
+    }).catch(() => {});
   };
 
   const handleBack = () => {
@@ -226,7 +232,7 @@ const MainShell: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden select-none font-sans relative">
+    <div className="flex flex-col h-screen w-screen overflow-hidden select-none font-sans relative bg-[#1f1f1f]">
       {/* Dynamic TitleBar */}
       <TitleBar
         title={titleBarText}
