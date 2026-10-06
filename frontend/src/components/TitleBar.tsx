@@ -17,6 +17,10 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   const { currentTheme } = useTheme();
   const [maximized, setMaximized] = useState(false);
 
+  const cleanTitle = (title || '')
+    .replace(/[\uFFFD\0]/g, '')
+    .trim() || 'Aquile Reader';
+
   useEffect(() => {
     // Check initial state
     isWindowMaximized().then(setMaximized);
@@ -71,10 +75,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           <div className="w-3" data-tauri-drag-region />
         )}
         <span
-          className="text-[12px] font-normal tracking-wide flex items-center pr-4"
+          className="text-[12px] font-normal tracking-normal flex items-center pr-4 font-sans select-none antialiased"
+          style={{
+            fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif",
+          }}
           data-tauri-drag-region
         >
-          {title}
+          {cleanTitle}
         </span>
       </div>
 
@@ -101,7 +108,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           {maximized ? (
             <Copy size={11} className="stroke-[2] rotate-180" />
           ) : (
-            <Square size={11} className="stroke-[2]" />
+            <Square size={11} className="stroke-[2] stroke-neutral-200" />
           )}
         </button>
 

@@ -90,7 +90,61 @@ pub fn init_db(db_path: &Path) -> Result<Connection> {
         seed_default_books(&conn)?;
     }
 
+    // Sanitize any existing book records with null bytes or replacement chars
+    sanitize_existing_books(&conn);
+
     Ok(conn)
+}
+
+pub fn sanitize_db_string(s: &str) -> String {
+    s.chars()
+        .filter(|&c| c != '\0' && c != '\u{FFFD}')
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn sanitize_existing_books(conn: &Connection) {
+    let mut update_list = Vec::new();
+    if let Ok(mut stmt) = conn.prepare("SELECT id, title, author, file_path FROM books") {
+        if let Ok(rows) = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        }) {
+            for r in rows.flatten() {
+                let (id, title, author, file_path) = r;
+                let has_null_or_rep = title.contains('\0')
+                    || title.contains('\u{FFFD}')
+                    || author
+                        .as_ref()
+                        .map(|a| a.contains('\0') || a.contains('\u{FFFD}'))
+                        .unwrap_or(false);
+                if has_null_or_rep {
+                    let path = Path::new(&file_path);
+                    let (clean_t, clean_a) = if path.exists() {
+                        if let Ok(meta) = crate::extractors::extract_metadata(path) {
+                            (meta.title, meta.author)
+                        } else {
+                            (sanitize_db_string(&title), author.map(|a| sanitize_db_string(&a)))
+                        }
+                    } else {
+                        (sanitize_db_string(&title), author.map(|a| sanitize_db_string(&a)))
+                    };
+                    update_list.push((id, clean_t, clean_a));
+                }
+            }
+        }
+    }
+    for (id, t, a) in update_list {
+        let _ = conn.execute(
+            "UPDATE books SET title = ?1, author = ?2 WHERE id = ?3",
+            params![t, a, id],
+        );
+    }
 }
 
 fn seed_default_books(conn: &Connection) -> Result<()> {
@@ -270,8 +324,8 @@ pub fn list_books(conn: &Connection) -> Result<Vec<BookWithProgress>> {
         .query_map([], |row| {
             Ok(BookWithProgress {
                 id: row.get(0)?,
-                title: row.get(1)?,
-                author: row.get(2)?,
+                title: sanitize_db_string(&row.get::<_, String>(1)?),
+                author: row.get::<_, Option<String>>(2)?.map(|a| sanitize_db_string(&a)),
                 file_path: row.get(3)?,
                 format: row.get(4)?,
                 cover_image: row.get(5)?,
@@ -306,8 +360,8 @@ pub fn get_book(conn: &Connection, book_id: &str) -> Result<Option<BookWithProgr
     if let Some(row) = rows.next()? {
         Ok(Some(BookWithProgress {
             id: row.get(0)?,
-            title: row.get(1)?,
-            author: row.get(2)?,
+            title: sanitize_db_string(&row.get::<_, String>(1)?),
+            author: row.get::<_, Option<String>>(2)?.map(|a| sanitize_db_string(&a)),
             file_path: row.get(3)?,
             format: row.get(4)?,
             cover_image: row.get(5)?,
@@ -340,8 +394,8 @@ pub fn get_book_by_path(conn: &Connection, file_path: &str) -> Result<Option<Boo
     if let Some(row) = rows.next()? {
         Ok(Some(BookWithProgress {
             id: row.get(0)?,
-            title: row.get(1)?,
-            author: row.get(2)?,
+            title: sanitize_db_string(&row.get::<_, String>(1)?),
+            author: row.get::<_, Option<String>>(2)?.map(|a| sanitize_db_string(&a)),
             file_path: row.get(3)?,
             format: row.get(4)?,
             cover_image: row.get(5)?,
@@ -376,8 +430,8 @@ pub fn get_recent_reads(conn: &Connection, limit: usize) -> Result<Vec<BookWithP
         .query_map(params![limit as i64], |row| {
             Ok(BookWithProgress {
                 id: row.get(0)?,
-                title: row.get(1)?,
-                author: row.get(2)?,
+                title: sanitize_db_string(&row.get::<_, String>(1)?),
+                author: row.get::<_, Option<String>>(2)?.map(|a| sanitize_db_string(&a)),
                 file_path: row.get(3)?,
                 format: row.get(4)?,
                 cover_image: row.get(5)?,

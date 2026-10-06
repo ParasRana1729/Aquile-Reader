@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Menu,
   FileText,
@@ -71,75 +71,14 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   totalPages,
   readingSpeedWpm = 220,
 }) => {
-  const [isVisible, setIsVisible] = useState(true);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const cleanBookTitle = (bookTitle || '').replace(/[\uFFFD\0]/g, '').trim();
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
   const isDark = currentTheme.isDark;
   const isDualSpread = settings.spreadMode === 'dual' || settings.isTwoColumn;
-
-  // Auto-hiding logic: reveal on top-screen hover, auto-hide when idle
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientY <= 65) {
-        setIsVisible(true);
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      } else {
-        // If no modal/popover is open, schedule auto-hide
-        if (
-          !isAppearanceOpen &&
-          !isSearchOpen &&
-          !isTOCOpen &&
-          !isBookmarksOpen &&
-          !isAnnotationsOpen &&
-          !isModeDropdownOpen
-        ) {
-          if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-          hideTimerRef.current = setTimeout(() => {
-            setIsVisible(false);
-          }, 3000);
-        }
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    };
-  }, [
-    isAppearanceOpen,
-    isSearchOpen,
-    isTOCOpen,
-    isBookmarksOpen,
-    isAnnotationsOpen,
-    isModeDropdownOpen,
-  ]);
-
-  // Keep toolbar visible if any popover is active
-  useEffect(() => {
-    if (
-      isAppearanceOpen ||
-      isSearchOpen ||
-      isTOCOpen ||
-      isBookmarksOpen ||
-      isAnnotationsOpen ||
-      isModeDropdownOpen
-    ) {
-      setIsVisible(true);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    }
-  }, [
-    isAppearanceOpen,
-    isSearchOpen,
-    isTOCOpen,
-    isBookmarksOpen,
-    isAnnotationsOpen,
-    isModeDropdownOpen,
-  ]);
 
   // Fullscreen listener
   useEffect(() => {
@@ -171,25 +110,17 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 
   return (
     <nav
-      aria-label="Reader Navigation"
-      className={`fixed top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out ${
-        isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
-      }`}
-      onMouseEnter={() => {
-        setIsVisible(true);
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      aria-label="Reader Options Toolbar"
+      className="w-full flex-shrink-0 z-40 select-none relative transition-colors duration-200"
+      style={{
+        backgroundColor: currentTheme.toolbarBg || '#2a2b2f',
+        borderColor: currentTheme.border || 'rgba(255, 255, 255, 0.08)',
+        color: currentTheme.text || '#ffffff',
       }}
     >
-      <div
-        className="h-11 w-full flex items-center justify-between px-3 md:px-5 border-b backdrop-blur-md shadow-lg select-none"
-        style={{
-          backgroundColor: currentTheme.toolbarBg,
-          borderColor: currentTheme.border,
-          color: currentTheme.text,
-        }}
-      >
-        {/* Left Toolbar Controls */}
-        <div className="flex items-center gap-1">
+      <div className="h-11 w-full flex items-center justify-between px-3 md:px-5 border-b border-inherit shadow-sm">
+        {/* Left Toolbar Controls (TOC, Notes, Bookmarks, Engine) */}
+        <div className="flex items-center gap-1.5">
           {onBack && (
             <button
               type="button"
@@ -232,7 +163,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
           </button>
 
           {/* Engine / Document Mode Switcher */}
-          <div className="relative ml-2">
+          <div className="relative ml-1.5">
             <button
               onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
@@ -277,20 +208,26 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
           </div>
         </div>
 
-        {/* Center Title & Quick Stats */}
-        <div className="hidden md:flex items-center gap-3 text-xs opacity-75 font-serif truncate max-w-sm">
-          <span className="truncate italic">{bookTitle}</span>
-          <span className="text-[11px] opacity-60 font-sans">
-            {currentPage} of {totalPages}
-          </span>
+        {/* Center Quick Stats (Matching Windows native reader clean layout) */}
+        <div className="hidden md:flex items-center gap-3 text-xs opacity-80 font-sans select-none antialiased">
+          {cleanBookTitle && (
+            <span className="truncate max-w-[260px] font-normal opacity-70 hidden xl:inline" title={cleanBookTitle}>
+              {cleanBookTitle}
+            </span>
+          )}
+          {totalPages > 0 && (
+            <span className="text-[12px] opacity-75 font-normal">
+              {currentPage} of {totalPages}
+            </span>
+          )}
           {readingSpeedWpm > 0 && (
-            <span className="text-[10px] opacity-40 font-mono tracking-tight hidden lg:inline">
+            <span className="text-[11px] opacity-50 font-sans tracking-tight hidden lg:inline">
               ~{readingSpeedWpm} WPM
             </span>
           )}
         </div>
 
-        {/* Right Toolbar Controls */}
+        {/* Right Toolbar Controls (Search, TTS, Zoom, Spread, Appearance, Fullscreen) */}
         <div className="flex items-center gap-1.5">
           {/* Search */}
           <button
@@ -309,7 +246,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onToggleReadAloud}
             className={buttonClass(isReadingAloud)}
-            title={isReadingAloud ? 'Stop ReadAloud TTS' : 'Start ReadAloud TTS (<⊝>)'}
+            title={isReadingAloud ? 'Stop ReadAloud TTS' : 'Start ReadAloud TTS (🔊)'}
           >
             {isReadingAloud ? (
               <VolumeX size={16} className="text-red-400 animate-pulse" />

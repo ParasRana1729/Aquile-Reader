@@ -60,7 +60,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   onBack,
 }) => {
   // Determine title and format from book prop if provided
-  const effectiveTitle = book?.title || bookTitle;
+  const effectiveTitle = (book?.title || bookTitle || '').replace(/[\uFFFD\0]/g, '').trim() || 'Book';
   const effectiveId = book?.id || bookId;
   const rawFormat = (book?.format || bookFormat).toUpperCase();
   const effectivePath = book?.filePath || bookPath;
@@ -558,7 +558,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       />
 
       {/* Main Reader Content Area */}
-      <main className="flex-1 w-full h-full relative overflow-hidden flex flex-col">
+      <main className="flex-1 w-full min-h-0 relative overflow-hidden flex flex-col">
         {isResolving ? (
           <div className="flex flex-col items-center justify-center h-full w-full space-y-3">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />

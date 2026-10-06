@@ -215,9 +215,10 @@ const MainShell: React.FC = () => {
   // Determine Titlebar text and back button status matching Windows B0
   let titleBarText = 'Aquile Reader';
   let showBack = false;
+  const cleanBookTitle = (currentBookTitle || '').replace(/[\uFFFD\0]/g, '').trim();
 
   if (isReading) {
-    titleBarText = `${currentBookTitle} - Aquile Reader`;
+    titleBarText = `${cleanBookTitle || 'Book'} - Aquile Reader`;
     showBack = true;
   } else if (currentView !== 'home') {
     titleBarText = 'Aquile Reader';
