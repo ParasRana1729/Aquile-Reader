@@ -152,3 +152,23 @@ All components compile cleanly with zero errors:
 
 ### 4. OPDS Catalogs & Library Polish
 - **Offline & Fallback Import**: Enhanced `import_book` in `src-tauri/src/commands.rs` to generate generic SVG covers and metadata for catalog feeds, making simulated OPDS book downloads immediately available and readable in local storage.
+
+### 5. Text-to-Speech (TTS) & Voice Narration
+- **Engine**: Robust Web Speech API wrapper (`frontend/src/utils/tts.ts`) with intelligent sentence boundary segmentation, Chromium heartbeat timer, and word-level tracking.
+- **Controls**: Floating acrylic playback bar (`TTSBar.tsx`) with Play, Pause, Stop, Skip sentence, Speed adjustments (0.5x to 2.5x), and system voice picker.
+- **Continuous Reading**: Automatic page and chapter advancement across PDF and EPUB engines when speech narration reaches the end of current text.
+
+### 6. Multi-File Drag-and-Drop & Library Auto-Sync
+- **Batch Import**: `import_multiple_books` backend command with duplicate detection and fast batch ingestion.
+- **Folder Scanner**: `scan_directory_books` recursively discovers `.epub`, `.pdf`, `.cbz`, and `.cbr` files.
+- **Desktop UI**: Window-wide Fluent drag overlay with format badges and Library toolbar integration for bulk import and folder scanning.
+
+### 7. Advanced Reader Controls & Typography Suite
+- **Two-Page Spread Layout**: Dual-column reading mode for EPUB and PDF engines with responsive viewport adjustment.
+- **Fine-Tuning Typography**: Sliders for margins (16-120px), line height (1.2-2.4), letter spacing (-0.5-3.0px), paragraph gaps (0-24px), text alignment (left, justify, center), and custom font family picker.
+- **Persistence**: Preferences stored seamlessly in `localStorage` across reading sessions.
+
+### 8. Packaging & Release Automation Pipeline
+- **CI Workflow (`.github/workflows/ci.yml`)**: Continuous integration testing Rust backend, Vite frontend, and WebKit2GTK dependencies on Ubuntu 24.04.
+- **Release Automation (`.github/workflows/release.yml`)**: Automated `.deb` and `.AppImage` bundling, SHA256 checksum generation, and release publishing on version tags.
+- **Bundle Configuration (`src-tauri/tauri.conf.json`)**: Bundler metadata, Linux package dependencies, and desktop asset definitions.

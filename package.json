@@ -11,7 +11,10 @@
     "dev": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "tauri": "tauri",
-    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml"
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "build:desktop": "tauri build",
+    "build:frontend": "npm run build --prefix frontend",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml && npm run build --prefix frontend"
   },
   "repository": {
     "type": "git",
