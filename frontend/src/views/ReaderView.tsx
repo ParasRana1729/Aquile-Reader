@@ -81,10 +81,11 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [isResolving, setIsResolving] = useState<boolean>(true);
   const blobUrlRef = useRef<string | null>(null);
 
-  // Settings & Appearance state management with localStorage persistence
+  // Settings & Appearance state management with localStorage persistence (per-book and global fallback)
   const [settings, setSettings] = useState<ReaderSettings>(() => {
     try {
-      const saved = localStorage.getItem('aquile_reader_settings');
+      const bookSpecificKey = effectiveId ? `aquile_reader_settings_${effectiveId}` : null;
+      const saved = (bookSpecificKey && localStorage.getItem(bookSpecificKey)) || localStorage.getItem('aquile_reader_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
         // Normalize margin if string
@@ -203,7 +204,18 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   }, [effectiveId]);
 
   // Reading Session Tracking
-  const initialPageVal = book?.percentage ? Math.max(1, Math.round((book.percentage / 100) * (book.pageCount || 100))) : 1;
+  let initialPageVal = 1;
+  if (book?.position) {
+    try {
+      const parsedPos = JSON.parse(book.position);
+      if (typeof parsedPos.page === 'number' && parsedPos.page > 0) {
+        initialPageVal = parsedPos.page;
+      }
+    } catch {}
+  }
+  if (initialPageVal === 1 && book?.percentage && book.pageCount) {
+    initialPageVal = Math.max(1, Math.round((book.percentage / 100) * book.pageCount));
+  }
   const initialTotalPagesVal = book?.pageCount || (effectiveId.includes('prince') ? 140 : 200);
 
   const {
@@ -237,9 +249,18 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     totalPagesRef.current = totalPages;
   }, [totalPages]);
 
-  // Flush reading session on unmount or navigation back
+  // Flush reading session and progress on unmount or navigation back
   useEffect(() => {
     return () => {
+      const page = currentPageRef.current;
+      const total = totalPagesRef.current;
+      const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((page / total) * 100))) : 0;
+      ipcUpdateProgress(
+        effectiveId,
+        pct,
+        JSON.stringify({ page })
+      ).catch(() => {});
+
       const duration = activeReadingSeconds - lastRecordedSecondsRef.current;
       if (duration > 5) {
         recordReadingSession({
@@ -249,7 +270,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           endTime: new Date().toISOString(),
           durationSeconds: duration,
           wordsRead: Math.max(20, wordsRead),
-        });
+        }).catch(() => {});
       }
     };
   }, [effectiveId, activeReadingSeconds, wordsRead]);
@@ -267,6 +288,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       const next = { ...prev, ...synched };
       try {
         localStorage.setItem('aquile_reader_settings', JSON.stringify(next));
+        if (effectiveId) {
+          localStorage.setItem(`aquile_reader_settings_${effectiveId}`, JSON.stringify(next));
+        }
       } catch {
         // ignore
       }
@@ -514,6 +538,24 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
   };
 
+  // Save progress immediately on back button
+  const handleExitReader = useCallback(async () => {
+    const page = currentPageRef.current;
+    const total = totalPagesRef.current;
+    const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((page / total) * 100))) : 0;
+    try {
+      await ipcUpdateProgress(
+        effectiveId,
+        pct,
+        JSON.stringify({ page })
+      );
+    } catch {}
+
+    if (onBack) {
+      onBack();
+    }
+  }, [effectiveId, onBack]);
+
   // Navigate to page / chapter
   const handleNavigateToPage = (pageNum: number) => {
     if (jumpToPageRef.current) {
@@ -534,7 +576,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         bookTitle={effectiveTitle}
         settings={settings}
         onUpdateSettings={handleUpdateSettings}
-        onBack={onBack}
+        onBack={handleExitReader}
         onToggleTOC={() => {
           setIsTOCOpen(!isTOCOpen);
           setIsBookmarksOpen(false);
@@ -562,7 +604,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
         currentPage={currentPage}
         totalPages={totalPages}
-        readingSpeedWpm={readingSpeedWpm}
       />
 
       {/* Main Reader Content Area */}

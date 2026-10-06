@@ -40,7 +40,6 @@ interface FloatingToolbarProps {
   // Progress & Stats
   currentPage: number;
   totalPages: number;
-  readingSpeedWpm?: number;
 }
 
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
@@ -62,7 +61,6 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   onZoomOut,
   currentPage,
   totalPages,
-  readingSpeedWpm = 220,
 }) => {
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -169,11 +167,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
               {currentPage} of {totalPages}
             </span>
           )}
-          {readingSpeedWpm > 0 && (
-            <span className="text-[11px] opacity-50 font-sans tracking-tight hidden lg:inline">
-              ~{readingSpeedWpm} WPM
-            </span>
-          )}
+
         </div>
 
         {/* Right Toolbar Controls (Search, TTS, Zoom, Spread, Appearance, Fullscreen) */}

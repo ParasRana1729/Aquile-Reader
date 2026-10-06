@@ -86,49 +86,7 @@ export function useReadingSession({
     return () => clearInterval(interval);
   }, [wordsRead]);
 
-  // Update progress helper
-  const updateProgress = useCallback(
-    (page: number, total: number, customPercent?: number) => {
-      setCurrentPage(page);
-      setTotalPages(total);
-      const pct = customPercent !== undefined ? customPercent : Math.round((page / Math.max(1, total)) * 100);
-      setProgressPercentage(Math.min(100, Math.max(0, pct)));
-
-      // Estimate words read up to this page
-      const estimatedWords = Math.min(totalWordsEstimate, page * wordsPerPage);
-      setWordsRead(estimatedWords);
-      markActive();
-    },
-    [wordsPerPage, totalWordsEstimate, markActive]
-  );
-
-  // Checkpoint timer: save every 5 seconds to localStorage and invoke callback
-  useEffect(() => {
-    const checkpointInterval = setInterval(() => {
-      const stats: ReadingSessionStats = {
-        bookId,
-        currentPage,
-        totalPages,
-        progressPercentage,
-        activeReadingSeconds,
-        wordsRead,
-        readingSpeedWpm,
-        lastCheckpoint: Date.now(),
-      };
-
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(stats));
-      } catch {
-        // storage full or disabled
-      }
-
-      if (onCheckpoint) {
-        onCheckpoint(stats);
-      }
-    }, 5000);
-
-    return () => clearInterval(checkpointInterval);
-  }, [
+  const latestStatsRef = useRef<ReadingSessionStats>({
     bookId,
     currentPage,
     totalPages,
@@ -136,9 +94,74 @@ export function useReadingSession({
     activeReadingSeconds,
     wordsRead,
     readingSpeedWpm,
-    storageKey,
-    onCheckpoint,
-  ]);
+    lastCheckpoint: Date.now(),
+  });
+
+  useEffect(() => {
+    latestStatsRef.current = {
+      bookId,
+      currentPage,
+      totalPages,
+      progressPercentage,
+      activeReadingSeconds,
+      wordsRead,
+      readingSpeedWpm,
+      lastCheckpoint: Date.now(),
+    };
+  }, [bookId, currentPage, totalPages, progressPercentage, activeReadingSeconds, wordsRead, readingSpeedWpm]);
+
+  // Update progress helper - persists immediately to localStorage and invokes onCheckpoint
+  const updateProgress = useCallback(
+    (page: number, total: number, customPercent?: number) => {
+      setCurrentPage(page);
+      setTotalPages(total);
+      const pct = customPercent !== undefined ? customPercent : Math.round((page / Math.max(1, total)) * 100);
+      const boundedPct = Math.min(100, Math.max(0, pct));
+      setProgressPercentage(boundedPct);
+
+      // Estimate words read up to this page
+      const estimatedWords = Math.min(totalWordsEstimate, page * wordsPerPage);
+      setWordsRead(estimatedWords);
+      markActive();
+
+      const newStats: ReadingSessionStats = {
+        bookId,
+        currentPage: page,
+        totalPages: total,
+        progressPercentage: boundedPct,
+        activeReadingSeconds: latestStatsRef.current.activeReadingSeconds,
+        wordsRead: estimatedWords,
+        readingSpeedWpm: latestStatsRef.current.readingSpeedWpm,
+        lastCheckpoint: Date.now(),
+      };
+      latestStatsRef.current = newStats;
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newStats));
+      } catch {}
+
+      if (onCheckpoint) {
+        onCheckpoint(newStats);
+      }
+    },
+    [bookId, storageKey, totalWordsEstimate, wordsPerPage, markActive, onCheckpoint]
+  );
+
+  // Checkpoint timer: periodic checkpoint and unmount flush
+  useEffect(() => {
+    const checkpointInterval = setInterval(() => {
+      if (onCheckpoint && latestStatsRef.current) {
+        onCheckpoint(latestStatsRef.current);
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(checkpointInterval);
+      if (onCheckpoint && latestStatsRef.current) {
+        onCheckpoint(latestStatsRef.current);
+      }
+    };
+  }, [onCheckpoint]);
 
   return {
     currentPage,

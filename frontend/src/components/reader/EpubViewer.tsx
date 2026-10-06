@@ -217,7 +217,9 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
         if (isCancelled) return;
         const total = book.locations.length();
         if (total > 0) {
-          onPageChange(1, total, 1);
+          const initialP = currentPage && currentPage > 0 && currentPage <= total ? currentPage : 1;
+          const pct = Math.round((initialP / total) * 100);
+          onPageChange(initialP, total, pct);
         }
       });
     });

@@ -63,6 +63,27 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
 
   // DOM node references
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const hasRestoredInitialScroll = useRef(false);
+
+  useEffect(() => {
+    hasRestoredInitialScroll.current = false;
+  }, [url]);
+
+  useEffect(() => {
+    if (hasRestoredInitialScroll.current || pages.length === 0 || !containerRef.current) return;
+    const target = currentPage && currentPage > 0 && currentPage <= pages.length ? currentPage : 1;
+    if (target > 1) {
+      hasRestoredInitialScroll.current = true;
+      requestAnimationFrame(() => {
+        const el = pageRefs.current.get(target);
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+      });
+    } else {
+      hasRestoredInitialScroll.current = true;
+    }
+  }, [pages.length, currentPage]);
 
   // Active rendering tasks and completed renders tracking
   const activeRenderTasks = useRef<Map<number, pdfjsLib.RenderTask>>(new Map());
@@ -172,7 +193,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         if (isCancelled) return;
         setPdfDoc(doc);
         const total = doc.numPages;
-        onPageChange(1, total);
+        const initialPage = currentPage && currentPage > 0 && currentPage <= total ? currentPage : 1;
+        onPageChange(initialPage, total);
 
         // Fetch Page 1 to get baseline aspect ratio immediately (sub-50ms opening)
         const page1 = await doc.getPage(1);

@@ -67,7 +67,8 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
           }));
           if (!isCancelled) {
             setComicPages(list);
-            onPageChange(1, list.length);
+            const initialP1 = currentPage && currentPage > 0 && currentPage <= list.length ? currentPage : 1;
+            onPageChange(initialP1, list.length);
             setLoading(false);
           }
           return;
@@ -129,7 +130,8 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
 
           if (!isCancelled) {
             setComicPages(fallbackPages);
-            onPageChange(1, fallbackPages.length);
+            const initialP2 = currentPage && currentPage > 0 && currentPage <= fallbackPages.length ? currentPage : 1;
+            onPageChange(initialP2, fallbackPages.length);
             setLoading(false);
           }
           return;
@@ -150,7 +152,8 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
 
         if (!isCancelled) {
           setComicPages(loadedList);
-          onPageChange(1, loadedList.length);
+          const initialP3 = currentPage && currentPage > 0 && currentPage <= loadedList.length ? currentPage : 1;
+            onPageChange(initialP3, loadedList.length);
           setLoading(false);
         }
       } catch (err: any) {
