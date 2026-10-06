@@ -76,7 +76,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       ? 'sanctum'
       : 'pdf';
 
-  const [currentMode, setCurrentMode] = useState<ReaderMode>(initialMode);
+  const currentMode: ReaderMode = initialMode;
   const [resolvedUrl, setResolvedUrl] = useState<string>('');
   const [isResolving, setIsResolving] = useState<boolean>(true);
   const blobUrlRef = useRef<string | null>(null);
@@ -559,8 +559,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         isReadingAloud={isReadingAloud}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        currentMode={currentMode}
-        onChangeMode={(m) => setCurrentMode(m)}
+
         currentPage={currentPage}
         totalPages={totalPages}
         readingSpeedWpm={readingSpeedWpm}

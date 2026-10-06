@@ -12,9 +12,7 @@ import {
   Maximize2,
   Minimize2,
   Type,
-  BookOpen,
   ArrowLeft,
-  ChevronDown,
 } from 'lucide-react';
 import { ReaderSettings, ReaderMode, READER_THEMES } from '../../types/reader';
 import { AppearancePopover } from './AppearancePopover';
@@ -39,9 +37,6 @@ interface FloatingToolbarProps {
   // Zoom
   onZoomIn: () => void;
   onZoomOut: () => void;
-  // Mode selection
-  currentMode: ReaderMode;
-  onChangeMode: (mode: ReaderMode) => void;
   // Progress & Stats
   currentPage: number;
   totalPages: number;
@@ -65,15 +60,12 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   isReadingAloud,
   onZoomIn,
   onZoomOut,
-  currentMode,
-  onChangeMode,
   currentPage,
   totalPages,
   readingSpeedWpm = 220,
 }) => {
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
 
   const cleanBookTitle = (bookTitle || '').replace(/[\uFFFD\0]/g, '').trim();
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
@@ -162,50 +154,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             <Bookmark size={16} />
           </button>
 
-          {/* Engine / Document Mode Switcher */}
-          <div className="relative ml-1.5">
-            <button
-              onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
-                isDark
-                  ? 'bg-white/5 border-white/10 hover:bg-white/10 text-neutral-200'
-                  : 'bg-black/5 border-black/10 hover:bg-black/10 text-neutral-800'
-              }`}
-              title="Reader Engine Mode"
-            >
-              <BookOpen size={13} className="text-primary" />
-              <span className="capitalize">{currentMode}</span>
-              <ChevronDown size={11} className="opacity-60" />
-            </button>
 
-            {isModeDropdownOpen && (
-              <div
-                className={`absolute top-full left-0 mt-1 w-36 rounded-lg shadow-xl border p-1 z-50 backdrop-blur-xl ${
-                  isDark ? 'bg-[#2b2b2b] border-white/10 text-neutral-200' : 'bg-white border-black/10 text-neutral-800'
-                }`}
-              >
-                {(['sanctum', 'pdf', 'epub', 'comic'] as ReaderMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => {
-                      onChangeMode(mode);
-                      setIsModeDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded text-xs capitalize transition-colors flex items-center justify-between ${
-                      currentMode === mode
-                        ? 'bg-primary/20 text-primary font-medium'
-                        : isDark
-                        ? 'hover:bg-white/5'
-                        : 'hover:bg-black/5'
-                    }`}
-                  >
-                    <span>{mode === 'sanctum' ? 'Sanctum (Text)' : mode.toUpperCase()}</span>
-                    {currentMode === mode && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Center Quick Stats (Matching Windows native reader clean layout) */}

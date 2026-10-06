@@ -236,7 +236,13 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full w-full space-y-3">
+      <div
+        className="flex flex-col items-center justify-center h-full w-full space-y-3"
+        style={{
+          backgroundColor: currentTheme.bg,
+          color: currentTheme.text,
+        }}
+      >
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         <span className="text-xs text-neutral-400 font-sans tracking-wide">
           Extracting Comic Book Frames...
@@ -247,9 +253,15 @@ export const ComicViewer: React.FC<ComicViewerProps> = ({
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+      <div
+        className="flex flex-col items-center justify-center h-full w-full p-6 text-center select-none"
+        style={{
+          backgroundColor: currentTheme.bg,
+          color: currentTheme.text,
+        }}
+      >
         <div className="text-red-400 font-medium mb-2">Error Loading Comic</div>
-        <div className="text-xs text-neutral-400 max-w-md">{error}</div>
+        <div className="text-xs opacity-70 max-w-md">{error}</div>
       </div>
     );
   }

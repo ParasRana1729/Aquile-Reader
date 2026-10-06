@@ -178,6 +178,14 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     });
     renditionRef.current = rendition;
 
+    book.ready.catch((err) => {
+      if (!isCancelled) {
+        console.error('Failed to open EPUB:', err);
+        setError('Failed to open EPUB document. The file may be invalid, unsupported, or corrupt.');
+        setLoading(false);
+      }
+    });
+
     rendition.display().then(() => {
       if (isCancelled) return;
       setLoading(false);
@@ -274,9 +282,15 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+      <div
+        className="flex flex-col items-center justify-center h-full w-full p-6 text-center select-none"
+        style={{
+          backgroundColor: currentTheme.bg,
+          color: currentTheme.text,
+        }}
+      >
         <div className="text-red-400 font-medium mb-2">Error loading EPUB</div>
-        <div className="text-xs text-neutral-400 max-w-md">{error}</div>
+        <div className="text-xs opacity-70 max-w-md">{error}</div>
       </div>
     );
   }
