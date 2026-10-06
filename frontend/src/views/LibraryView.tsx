@@ -32,6 +32,7 @@ import {
   pickFolder,
   scanDirectoryBooks,
 } from '../utils/ipc';
+import { ensureBookCover } from '../utils/pdfThumbnail';
 
 interface LibraryViewProps {
   onOpenBook: (bookId: string) => void;
@@ -75,6 +76,19 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
         const updated = data.find((b) => b.id === selectedBook.id);
         setSelectedBook(updated || null);
       }
+
+      data.forEach((book) => {
+        if ((book.format || '').toLowerCase() === 'pdf') {
+          ensureBookCover(book, (bookId, coverUrl) => {
+            setBooks((prev) =>
+              prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
+            );
+            setSelectedBook((prev) =>
+              prev && prev.id === bookId ? { ...prev, coverImage: coverUrl } : prev
+            );
+          });
+        }
+      });
     } catch (e) {
       console.error('Failed to load library books:', e);
     } finally {

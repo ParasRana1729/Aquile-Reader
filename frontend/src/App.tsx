@@ -11,6 +11,7 @@ import { SettingsView } from './views/SettingsView';
 import { InsightsView } from './views/InsightsView';
 import { ReaderView } from './views/ReaderView';
 import { fetchBooks, importMultipleBooks } from './utils/ipc';
+import { ensureBookCover } from './utils/pdfThumbnail';
 import { BookWithProgress } from './types/book';
 import { FolderDown, CheckCircle2, X } from 'lucide-react';
 
@@ -101,6 +102,13 @@ const MainShell: React.FC = () => {
     if (validPaths.length > 0) {
       try {
         const imported = await importMultipleBooks(validPaths);
+        imported.forEach((book) => {
+          if ((book.format || '').toLowerCase() === 'pdf') {
+            ensureBookCover(book, () => {
+              setLibraryRefreshKey((prev) => prev + 1);
+            });
+          }
+        });
         setLibraryRefreshKey((prev) => prev + 1);
         if (currentView !== 'library') {
           setCurrentView('library');

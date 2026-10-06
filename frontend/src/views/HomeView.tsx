@@ -3,6 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Plus, Megaphone, Smartphone, Star, ChevronRight } from 'lucide-react';
 import { BookWithProgress } from '../types/book';
 import { fetchBooks, fetchRecentReads, importBook, pickBookFile } from '../utils/ipc';
+import { ensureBookCover } from '../utils/pdfThumbnail';
 
 interface HomeViewProps {
   onOpenLibrary: () => void;
@@ -24,6 +25,19 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
       ]);
       setBooks(allBooks);
       setRecentReads(recents);
+
+      allBooks.forEach((book) => {
+        if ((book.format || '').toLowerCase() === 'pdf') {
+          ensureBookCover(book, (bookId, coverUrl) => {
+            setBooks((prev) =>
+              prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
+            );
+            setRecentReads((prev) =>
+              prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
+            );
+          });
+        }
+      });
     } catch (e) {
       console.error('Failed to load books for Home view:', e);
     } finally {

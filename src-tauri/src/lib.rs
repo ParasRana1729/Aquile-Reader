@@ -61,6 +61,7 @@ pub fn run() {
             commands::import_multiple_books,
             commands::scan_directory_books,
             commands::delete_book,
+            commands::update_book_cover,
             commands::update_progress,
             commands::toggle_favorite,
             commands::read_book_bytes,

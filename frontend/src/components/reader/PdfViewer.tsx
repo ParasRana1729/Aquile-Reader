@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
@@ -6,7 +6,9 @@ import { PageBoundaryBadge } from './PageBoundaryBadge';
 import { ReaderSettings, READER_THEMES } from '../../types/reader';
 
 // Configure worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+if (pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+}
 
 export interface PdfSearchResult {
   page: number;
@@ -30,6 +32,8 @@ interface PageData {
   aspectRatio: number;
 }
 
+const BUFFER_PAGES = 2; // Keep current visible pages +/- 2 pages in memory
+
 export const PdfViewer: React.FC<PdfViewerProps> = ({
   url,
   settings,
@@ -44,8 +48,21 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const [pages, setPages] = useState<PageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Layout measurements
+  const [containerWidth, setContainerWidth] = useState<number>(800);
+
+  // Virtualization window tracking
+  const [visibleRange, setVisibleRange] = useState<{ min: number; max: number }>({ min: 1, max: 1 });
+  const visiblePagesSet = useRef<Set<number>>(new Set([1]));
+
+  // DOM node references
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Active rendering tasks and completed renders tracking
+  const activeRenderTasks = useRef<Map<number, pdfjsLib.RenderTask>>(new Map());
   const renderedPages = useRef<Set<number>>(new Set());
+  const renderQueueTimer = useRef<number | null>(null);
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
   const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
@@ -54,7 +71,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const jumpToPage = useCallback((pageNum: number) => {
     const el = pageRefs.current.get(pageNum);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.scrollIntoView({ behavior: 'auto', block: 'start' });
     }
   }, []);
 
@@ -106,12 +123,43 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     }
   }, [onSearchRef, searchPdf]);
 
-  // Load PDF Document
+  // Measure container width
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth || 800);
+      }
+    };
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Compute standard page CSS dimensions
+  const computedPageWidth = useMemo(() => {
+    const availableWidth = isDual
+      ? (containerWidth - 80) / 2
+      : Math.min(containerWidth - 48, 860);
+    return Math.max(280, Math.floor(availableWidth * settings.zoom));
+  }, [containerWidth, isDual, settings.zoom]);
+
+  // Load PDF Document & instantly initialize all pages with Page 1 aspect ratio
   useEffect(() => {
     let isCancelled = false;
     setLoading(true);
     setError(null);
     renderedPages.current.clear();
+
+    // Cancel any previous tasks
+    activeRenderTasks.current.forEach((task) => {
+      try {
+        task.cancel();
+      } catch {}
+    });
+    activeRenderTasks.current.clear();
 
     const loadingTask = pdfjsLib.getDocument({ url });
     loadingTask.promise
@@ -121,18 +169,18 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         const total = doc.numPages;
         onPageChange(1, total);
 
-        // Retrieve dimensions for all pages
-        const pagesMeta: PageData[] = [];
-        for (let i = 1; i <= total; i++) {
-          const page = await doc.getPage(i);
-          const vp = page.getViewport({ scale: 1 });
-          pagesMeta.push({
-            pageNumber: i,
-            width: vp.width,
-            height: vp.height,
-            aspectRatio: vp.width / vp.height,
-          });
-        }
+        // Fetch Page 1 to get baseline aspect ratio immediately (sub-50ms opening)
+        const page1 = await doc.getPage(1);
+        const vp1 = page1.getViewport({ scale: 1 });
+        const defaultRatio = vp1.width / vp1.height;
+
+        const pagesMeta: PageData[] = Array.from({ length: total }, (_, i) => ({
+          pageNumber: i + 1,
+          width: vp1.width,
+          height: vp1.height,
+          aspectRatio: defaultRatio,
+        }));
+
         if (!isCancelled) {
           setPages(pagesMeta);
           setLoading(false);
@@ -148,66 +196,151 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
 
     return () => {
       isCancelled = true;
+      activeRenderTasks.current.forEach((task) => {
+        try {
+          task.cancel();
+        } catch {}
+      });
+      activeRenderTasks.current.clear();
       loadingTask.destroy();
     };
   }, [url]);
 
-  // Render a specific page canvas and text selection layer
-  const renderPage = useCallback(
-    async (pageNum: number, container: HTMLDivElement) => {
-      if (!pdfDoc) return;
+  // Unload page canvas to reclaim GPU memory immediately
+  const unloadPage = useCallback((pageNum: number) => {
+    // 1. Cancel active render task if any
+    const activeTask = activeRenderTasks.current.get(pageNum);
+    if (activeTask) {
+      try {
+        activeTask.cancel();
+      } catch {}
+      activeRenderTasks.current.delete(pageNum);
+    }
 
-      const page = await pdfDoc.getPage(pageNum);
-      const canvas = container.querySelector<HTMLCanvasElement>('canvas');
-      const textLayerDiv = container.querySelector<HTMLDivElement>('.textLayer');
+    // 2. Free canvas backing store from memory
+    const pageDiv = pageRefs.current.get(pageNum);
+    if (pageDiv) {
+      const canvas = pageDiv.querySelector<HTMLCanvasElement>('canvas');
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, 0, 0);
+      }
+      const textLayerDiv = pageDiv.querySelector<HTMLDivElement>('.textLayer');
+      if (textLayerDiv) {
+        textLayerDiv.innerHTML = '';
+      }
+    }
+
+    renderedPages.current.delete(pageNum);
+  }, []);
+
+  // Render a specific page canvas and text selection layer safely
+  const renderPage = useCallback(
+    async (pageNum: number) => {
+      if (!pdfDoc) return;
+      const pageDiv = pageRefs.current.get(pageNum);
+      if (!pageDiv) return;
+
+      const canvas = pageDiv.querySelector<HTMLCanvasElement>('canvas');
+      const textLayerDiv = pageDiv.querySelector<HTMLDivElement>('.textLayer');
       if (!canvas || !textLayerDiv) return;
 
-      const pixelRatio = window.devicePixelRatio || 1;
-      const baseScale = settings.zoom;
-      // Fit container width if responsive
-      const containerWidth = container.clientWidth || 800;
-      const unscaledViewport = page.getViewport({ scale: 1.0 });
-      const targetScale = (containerWidth / unscaledViewport.width) * baseScale;
-
-      const viewport = page.getViewport({ scale: targetScale });
-
-      // Canvas dimensions for vector sharpness
-      canvas.width = Math.floor(viewport.width * pixelRatio);
-      canvas.height = Math.floor(viewport.height * pixelRatio);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const renderContext = {
-        canvasContext: ctx,
-        canvas: canvas,
-        viewport: viewport,
-        transform: [pixelRatio, 0, 0, pixelRatio, 0, 0],
-      };
-
-      await page.render(renderContext).promise;
-
-      // Text Layer for selection and search
-      textLayerDiv.innerHTML = '';
-      textLayerDiv.style.width = `${Math.floor(viewport.width)}px`;
-      textLayerDiv.style.height = `${Math.floor(viewport.height)}px`;
-      textLayerDiv.style.setProperty('--scale-factor', `${targetScale}`);
+      // Cancel any ongoing render task for this page
+      const existingTask = activeRenderTasks.current.get(pageNum);
+      if (existingTask) {
+        try {
+          existingTask.cancel();
+        } catch {}
+        activeRenderTasks.current.delete(pageNum);
+      }
 
       try {
-        const textContent = await page.getTextContent();
-        const textLayer = new pdfjsLib.TextLayer({
-          textContentSource: textContent,
-          container: textLayerDiv,
+        const page = await pdfDoc.getPage(pageNum);
+        const unscaledViewport = page.getViewport({ scale: 1.0 });
+
+        // Update aspect ratio if page differs from standard
+        const actualRatio = unscaledViewport.width / unscaledViewport.height;
+
+        const targetScale = computedPageWidth / unscaledViewport.width;
+        const viewport = page.getViewport({ scale: targetScale });
+
+        // Cap devicePixelRatio to 2 to prevent excessive GPU texture memory on 4K/HiDPI screens
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = Math.floor(viewport.width * pixelRatio);
+        canvas.height = Math.floor(viewport.height * pixelRatio);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) return;
+
+        const renderContext = {
+          canvasContext: ctx,
+          canvas: canvas,
           viewport: viewport,
-        });
-        await textLayer.render();
-      } catch (err) {
-        console.warn('Text layer render warning:', err);
+          transform: [pixelRatio, 0, 0, pixelRatio, 0, 0],
+        };
+
+        const renderTask = page.render(renderContext as any);
+        activeRenderTasks.current.set(pageNum, renderTask);
+
+        await renderTask.promise;
+        activeRenderTasks.current.delete(pageNum);
+        renderedPages.current.add(pageNum);
+
+        // Render Text Layer
+        textLayerDiv.innerHTML = '';
+        textLayerDiv.style.width = `${Math.floor(viewport.width)}px`;
+        textLayerDiv.style.height = `${Math.floor(viewport.height)}px`;
+        textLayerDiv.style.setProperty('--scale-factor', `${targetScale}`);
+
+        try {
+          const textContent = await page.getTextContent();
+          const textLayer = new pdfjsLib.TextLayer({
+            textContentSource: textContent,
+            container: textLayerDiv,
+            viewport: viewport,
+          });
+          await textLayer.render();
+        } catch (err) {
+          // Non-fatal text layer warning
+        }
+      } catch (err: any) {
+        if (err?.name === 'RenderingCancelledException') {
+          return; // Normal cancellation during fast scroll
+        }
+        console.warn(`Render error on page ${pageNum}:`, err);
       }
     },
-    [pdfDoc, settings.zoom]
+    [pdfDoc, computedPageWidth]
+  );
+
+  // Manage virtualization buffer window
+  const updateVirtualizationWindow = useCallback(
+    (minVisible: number, maxVisible: number) => {
+      if (pages.length === 0) return;
+
+      const bufferMin = Math.max(1, minVisible - BUFFER_PAGES);
+      const bufferMax = Math.min(pages.length, maxVisible + BUFFER_PAGES);
+
+      // Unload pages that are outside the buffer window
+      renderedPages.current.forEach((renderedPageNum) => {
+        if (renderedPageNum < bufferMin || renderedPageNum > bufferMax) {
+          unloadPage(renderedPageNum);
+        }
+      });
+
+      // Render pages that are within the buffer window
+      for (let p = bufferMin; p <= bufferMax; p++) {
+        if (!renderedPages.current.has(p) && !activeRenderTasks.current.has(p)) {
+          renderPage(p);
+        }
+      }
+    },
+    [pages.length, unloadPage, renderPage]
   );
 
   // Intersection Observer for continuous vertical scroll & page tracking
@@ -219,19 +352,32 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         entries.forEach((entry) => {
           const pageNum = Number(entry.target.getAttribute('data-page-number'));
           if (entry.isIntersecting) {
-            onPageChange(pageNum, pages.length);
-            // Render on visibility
-            const pageDiv = entry.target as HTMLDivElement;
-            if (!renderedPages.current.has(pageNum)) {
-              renderedPages.current.add(pageNum);
-              renderPage(pageNum, pageDiv);
-            }
+            visiblePagesSet.current.add(pageNum);
+          } else {
+            visiblePagesSet.current.delete(pageNum);
           }
         });
+
+        if (visiblePagesSet.current.size > 0) {
+          const sorted = Array.from(visiblePagesSet.current).sort((a, b) => a - b);
+          const minVisible = sorted[0];
+          const maxVisible = sorted[sorted.length - 1];
+
+          setVisibleRange({ min: minVisible, max: maxVisible });
+          onPageChange(minVisible, pages.length);
+
+          // Debounce fast scrolling to avoid rendering intermediate pages
+          if (renderQueueTimer.current) {
+            window.clearTimeout(renderQueueTimer.current);
+          }
+          renderQueueTimer.current = window.setTimeout(() => {
+            updateVirtualizationWindow(minVisible, maxVisible);
+          }, 60);
+        }
       },
       {
         root: containerRef.current,
-        threshold: 0.25,
+        threshold: 0.1,
       }
     );
 
@@ -239,40 +385,43 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
       if (el) observer.observe(el);
     });
 
-    return () => observer.disconnect();
-  }, [pages, onPageChange, renderPage]);
+    return () => {
+      observer.disconnect();
+      if (renderQueueTimer.current) {
+        window.clearTimeout(renderQueueTimer.current);
+      }
+    };
+  }, [pages, onPageChange, updateVirtualizationWindow]);
 
-  // Re-render when zoom, spreadMode or isTwoColumn changes
+  // Re-render visible buffer on zoom, dual spread, or window resize changes
   useEffect(() => {
     renderedPages.current.clear();
-    const timer = setTimeout(() => {
-      pageRefs.current.forEach((el, pageNum) => {
-        if (el) {
-          renderPage(pageNum, el);
-        }
-      });
-    }, 60);
-    return () => clearTimeout(timer);
-  }, [settings.zoom, settings.spreadMode, settings.isTwoColumn, renderPage]);
+    activeRenderTasks.current.forEach((task) => {
+      try {
+        task.cancel();
+      } catch {}
+    });
+    activeRenderTasks.current.clear();
 
-  // Re-render on window resize to fit responsive container width
+    const timer = setTimeout(() => {
+      updateVirtualizationWindow(visibleRange.min, visibleRange.max);
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [settings.zoom, settings.spreadMode, settings.isTwoColumn, computedPageWidth, updateVirtualizationWindow, visibleRange.min, visibleRange.max]);
+
+  // Cleanup on unmount
   useEffect(() => {
-    let resizeTimer: any;
-    const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        renderedPages.current.clear();
-        pageRefs.current.forEach((el, pageNum) => {
-          if (el) renderPage(pageNum, el);
-        });
-      }, 150);
-    };
-    window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimer);
+      activeRenderTasks.current.forEach((task) => {
+        try {
+          task.cancel();
+        } catch {}
+      });
+      activeRenderTasks.current.clear();
+      renderedPages.current.clear();
     };
-  }, [renderPage]);
+  }, []);
 
   if (loading) {
     return (
@@ -303,7 +452,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         color: currentTheme.text,
       }}
     >
-      {/* Two-page spread mode: grid grid-cols-2 side-by-side vs single column */}
+      {/* Two-page spread mode vs single column */}
       <div
         className={`mx-auto py-12 transition-all duration-300 ${
           isDual
@@ -311,38 +460,59 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             : 'flex flex-col items-center max-w-4xl px-4'
         }`}
       >
-        {pages.map((p) => (
-          <div
-            key={p.pageNumber}
-            ref={(el) => {
-              if (el) pageRefs.current.set(p.pageNumber, el);
-              else pageRefs.current.delete(p.pageNumber);
-            }}
-            data-page-number={p.pageNumber}
-            className="w-full flex flex-col items-center my-4"
-          >
-            {/* Page Canvas Container */}
+        {pages.map((p) => {
+          const pageHeight = Math.floor(computedPageWidth / p.aspectRatio);
+          const isInBuffer =
+            p.pageNumber >= visibleRange.min - BUFFER_PAGES &&
+            p.pageNumber <= visibleRange.max + BUFFER_PAGES;
+
+          return (
             <div
-              className="relative shadow-2xl transition-all duration-200"
+              key={p.pageNumber}
+              ref={(el) => {
+                if (el) pageRefs.current.set(p.pageNumber, el);
+                else pageRefs.current.delete(p.pageNumber);
+              }}
+              data-page-number={p.pageNumber}
+              className="w-full flex flex-col items-center my-4"
               style={{
-                backgroundColor: currentTheme.pageBg,
-                boxShadow: currentTheme.isDark
-                  ? '0 10px 30px rgba(0, 0, 0, 0.5)'
-                  : '0 10px 25px rgba(0, 0, 0, 0.08)',
+                minHeight: `${pageHeight}px`,
               }}
             >
-              <canvas className="block" />
-              <div className="textLayer absolute inset-0 select-text pointer-events-auto" />
-            </div>
+              {/* Page Canvas Container with fixed placeholder aspect ratio */}
+              <div
+                className="relative shadow-2xl transition-all duration-200 overflow-hidden"
+                style={{
+                  width: `${computedPageWidth}px`,
+                  minHeight: `${pageHeight}px`,
+                  backgroundColor: currentTheme.pageBg,
+                  boxShadow: currentTheme.isDark
+                    ? '0 10px 30px rgba(0, 0, 0, 0.5)'
+                    : '0 10px 25px rgba(0, 0, 0, 0.08)',
+                }}
+              >
+                <canvas className="block" />
+                <div className="textLayer absolute inset-0 select-text pointer-events-auto" />
 
-            {/* Continuous Page Boundary Badge */}
-            <PageBoundaryBadge
-              currentPage={p.pageNumber}
-              totalPages={pages.length}
-              theme={settings.theme}
-            />
-          </div>
-        ))}
+                {/* Lightweight placeholder indicator when page is not yet rendered */}
+                {!isInBuffer && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30 select-none pointer-events-none">
+                    <span className="text-xs font-serif italic text-neutral-500">
+                      Page {p.pageNumber}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Continuous Page Boundary Badge */}
+              <PageBoundaryBadge
+                currentPage={p.pageNumber}
+                totalPages={pages.length}
+                theme={settings.theme}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

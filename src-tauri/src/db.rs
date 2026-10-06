@@ -440,6 +440,11 @@ pub fn insert_book(conn: &Connection, book: &Book) -> Result<()> {
     Ok(())
 }
 
+pub fn update_book_cover(conn: &Connection, book_id: &str, cover_image: &str) -> Result<()> {
+    conn.execute("UPDATE books SET cover_image = ?1 WHERE id = ?2", params![cover_image, book_id])?;
+    Ok(())
+}
+
 pub fn delete_book(conn: &Connection, book_id: &str) -> Result<()> {
     conn.execute("DELETE FROM books WHERE id = ?1", params![book_id])?;
     Ok(())

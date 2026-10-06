@@ -188,10 +188,21 @@ pub fn toggle_favorite(state: State<'_, DbState>, book_id: String) -> Result<boo
 }
 
 #[tauri::command]
-pub fn read_book_bytes(file_path: String) -> Result<Vec<u8>, String> {
+pub fn update_book_cover(
+    state: State<'_, DbState>,
+    book_id: String,
+    cover_image: String,
+) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    db::update_book_cover(&conn, &book_id, &cover_image).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn read_book_bytes(file_path: String) -> Result<tauri::ipc::Response, String> {
     let path = Path::new(&file_path);
     if path.exists() {
-        return std::fs::read(path).map_err(|e| format!("Failed to read file {}: {}", file_path, e));
+        let b = std::fs::read(path).map_err(|e| format!("Failed to read file {}: {}", file_path, e))?;
+        return Ok(tauri::ipc::Response::new(b));
     }
 
     // Check if it's a builtin path and resolve from local fixtures if available
@@ -206,10 +217,12 @@ pub fn read_book_bytes(file_path: String) -> Result<Vec<u8>, String> {
             let p = Path::new(cand);
             if p.exists() {
                 if file_path.ends_with(".pdf") && cand.ends_with(".pdf") {
-                    return std::fs::read(p).map_err(|e| e.to_string());
+                    let b = std::fs::read(p).map_err(|e| e.to_string())?;
+                    return Ok(tauri::ipc::Response::new(b));
                 }
                 if file_path.ends_with(".epub") && cand.ends_with(".epub") {
-                    return std::fs::read(p).map_err(|e| e.to_string());
+                    let b = std::fs::read(p).map_err(|e| e.to_string())?;
+                    return Ok(tauri::ipc::Response::new(b));
                 }
             }
         }

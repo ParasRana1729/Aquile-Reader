@@ -18,7 +18,13 @@ export const AcrylicCanvas: React.FC<AcrylicCanvasProps> = ({
     <div className="relative w-full h-full overflow-hidden select-none">
       {/* Simulated Desktop Wallpaper Backdrop (Active when transparent is on) */}
       {isTransparent && showSimulatedWallpaper && (
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
+          style={{
+            transform: 'translate3d(0, 0, 0)',
+            backfaceVisibility: 'hidden',
+          }}
+        >
           {/* Deep forest misty bokeh matching Windows B0 reference screencast */}
           <div
             className="w-full h-full scale-105"
@@ -31,6 +37,7 @@ export const AcrylicCanvas: React.FC<AcrylicCanvasProps> = ({
                 linear-gradient(135deg, #18221b 0%, #202b23 35%, #141c16 70%, #0d130f 100%)
               `,
               filter: 'blur(16px)',
+              transform: 'translate3d(0, 0, 0)',
             }}
           />
         </div>
@@ -43,8 +50,10 @@ export const AcrylicCanvas: React.FC<AcrylicCanvasProps> = ({
           backgroundColor: isTransparent
             ? `rgba(28, 28, 30, ${opacityDecimal})`
             : '#1f1f1f',
-          backdropFilter: isTransparent ? 'blur(32px) saturate(180%)' : 'none',
-          WebkitBackdropFilter: isTransparent ? 'blur(32px) saturate(180%)' : 'none',
+          backdropFilter: isTransparent ? 'blur(20px) saturate(140%)' : 'none',
+          WebkitBackdropFilter: isTransparent ? 'blur(20px) saturate(140%)' : 'none',
+          transform: 'translateZ(0)',
+          contain: 'paint',
         }}
       >
         {children}

@@ -190,6 +190,21 @@ export async function deleteBook(bookId: string): Promise<void> {
   cachedMemoryBooks = cachedMemoryBooks.filter((b) => b.id !== bookId);
 }
 
+export async function updateBookCover(bookId: string, coverImage: string): Promise<void> {
+  if (isTauriEnv) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('update_book_cover', { bookId, coverImage });
+    } catch (e) {
+      console.warn('Tauri update_book_cover failed:', e);
+    }
+  }
+  const book = cachedMemoryBooks.find((b) => b.id === bookId);
+  if (book) {
+    book.coverImage = coverImage;
+  }
+}
+
 export async function updateProgress(
   bookId: string,
   percentage: number,
@@ -302,8 +317,14 @@ export async function readBookBytes(filePath: string): Promise<Uint8Array | null
   if (isTauriEnv) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      const bytes = await invoke<number[]>('read_book_bytes', { filePath });
-      return new Uint8Array(bytes);
+      const res = await invoke<ArrayBuffer | number[]>('read_book_bytes', { filePath });
+      if (res instanceof ArrayBuffer) {
+        return new Uint8Array(res);
+      }
+      if (Array.isArray(res)) {
+        return new Uint8Array(res);
+      }
+      return new Uint8Array(res as any);
     } catch (e) {
       console.warn('Failed to read book bytes via Tauri IPC:', e);
     }
@@ -347,7 +368,7 @@ export async function resolveBookContent(book: {
       } else if (fmt === 'cbz' || fp.endsWith('.cbz') || fp.endsWith('.zip')) {
         mimeType = 'application/vnd.comicbook+zip';
       }
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: mimeType });
+      const blob = new Blob([bytes as unknown as BlobPart], { type: mimeType });
       return URL.createObjectURL(blob);
     }
   }
