@@ -345,6 +345,8 @@ to the existing WP/AT coverage noted beside it. Status values: `not started` / `
 | 1.1 | *Page transition style* setting (`None/Slide/Fade/Flip`) is stored by `SettingsView.tsx` but never read anywhere — dead setting | Added `utils/readerPrefs.ts` (localStorage + live-update event); `EpubViewer` plays direction-aware CSS turn animations; `Flip` as rotateY variant; honors `prefers-reduced-motion` | complete |
 | 1.2 | Native turns pages on edge tap/click; ours only has hover-reveal arrow buttons | Added invisible left/right edge click zones (`cursor-w/e-resize`, arrow-key titles) in `EpubViewer`; arrows kept; keyboard handler tracks turn direction | complete |
 | 1.3 | Paged rhythm: full-viewport page, large serif `N of M` divider, running head, generous top margin | Single-page spread below 1400px; in-book padding 64/72px; 960px centered column; divider scaled to 26px serif-italic; themed loading/error states. Running head left in-book (overlay would duplicate content) | complete |
+| 1.5 | Real local EPUBs fail with `Failed to fetch` (extensionless `blob:` URLs fall into epubjs's DIRECTORY branch, which fetches `blob:…/META-INF/container.xml`) | Resolve `blob:` URLs to bytes and pass `ArrayBuffer` to `ePub()` (BINARY branch, clean `/` base); surface real error text; added Try-again retry | complete 2026-10-07 |
+
 | 1.4 | Keyboard arrows / single-key page turn | Verified only arrows/PgUp/PgDn/Space are bound; stripped nine fake emoji pseudo-shortcuts; truthful paging hint on page indicator. New global bindings deferred (needs input-focus guards) | complete |
 
 ### Phase 2 — Home, library, annotations (complete 2026-10-07)

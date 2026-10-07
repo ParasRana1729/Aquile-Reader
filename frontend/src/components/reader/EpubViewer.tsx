@@ -42,6 +42,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   const renditionRef = useRef<Rendition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const pageTransitionRef = useRef(getPageTransition());
 
   useEffect(() => subscribePageTransition((style) => {
@@ -173,112 +174,162 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     settings.margin,
   ]);
 
-  // Initialize ePub
+  // Initialize ePub.
+  // NOTE: blob: object URLs are resolved to raw bytes before handing the book
+  // to epubjs. epubjs 0.3.x mis-resolves the book's internal spine/resource
+  // URLs against a blob: base, which makes rendition.display() reject with
+  // "Failed to fetch" for real local files (fixtures work because they are
+  // served over http(s) with a clean base).
   useEffect(() => {
     if (!viewerRef.current) return;
     let isCancelled = false;
     setLoading(true);
     setError(null);
 
-    viewerRef.current.innerHTML = '';
-    const book = ePub(url);
-    bookRef.current = book;
+    const host = viewerRef.current;
+    host.innerHTML = '';
 
-    const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
-    const rendition = book.renderTo(viewerRef.current, {
-      width: '100%',
-      height: '100%',
-      flow: 'paginated',
-      spread: isDual ? 'always' : 'none',
-      // Native is a single full-viewport page at 1280px logical width
-      // (frames f_006/f_011); keep single-page there and only allow a
-      // dual spread on wider viewports.
-      minSpreadWidth: 1400,
-    });
-    renditionRef.current = rendition;
+    let book: Book | null = null;
 
-    book.ready.catch((err) => {
-      if (!isCancelled) {
-        console.error('Failed to open EPUB:', err);
-        setError('Failed to open EPUB document. The file may be invalid, unsupported, or corrupt.');
-        setLoading(false);
+    const describe = (err: unknown): string => {
+      if (err instanceof Error && err.message) return err.message;
+      try {
+        return String(err);
+      } catch {
+        return 'unknown error';
       }
-    });
+    };
 
-    rendition.display().then(() => {
-      if (isCancelled) return;
-      setLoading(false);
-      applyStyles();
-    }).catch((err) => {
-      if (!isCancelled) {
-        console.error('Failed to display ePub rendition:', err);
-        setError('Failed to display EPUB document.');
-        setLoading(false);
-      }
-    });
+    const startRendition = (opened: Book) => {
+      book = opened;
+      bookRef.current = opened;
 
-    // Extract navigation & Table of Contents
-    book.loaded.navigation.then((nav) => {
-      if (isCancelled) return;
-      if (onLoadTOC && nav && nav.toc) {
-        const tocItems: TOCItem[] = nav.toc.map((t, idx) => ({
-          id: t.id || `toc-${idx}`,
-          label: t.label ? t.label.trim() : `Chapter ${idx + 1}`,
-          href: t.href,
-        }));
-        onLoadTOC(tocItems);
-      }
-    });
+      const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
+      const rendition = opened.renderTo(host, {
+        width: '100%',
+        height: '100%',
+        flow: 'paginated',
+        spread: isDual ? 'always' : 'none',
+        // Native is a single full-viewport page at 1280px logical width
+        // (frames f_006/f_011); keep single-page there and only allow a
+        // dual spread on wider viewports.
+        minSpreadWidth: 1400,
+      });
+      renditionRef.current = rendition;
 
-    // Generate locations for accurate page calculation
-    book.ready.then(() => {
-      book.locations.generate(1600).then(() => {
-        if (isCancelled) return;
-        const total = book.locations.length();
-        if (total > 0) {
-          const initialP = currentPage && currentPage > 0 && currentPage <= total ? currentPage : 1;
-          const pct = Math.round((initialP / total) * 100);
-          onPageChange(initialP, total, pct);
+      opened.ready.catch((err) => {
+        if (!isCancelled) {
+          console.error('Failed to open EPUB:', err);
+          setError(`Could not open this EPUB file: ${describe(err)}.`);
+          setLoading(false);
         }
       });
-    });
 
-    // Relocated event
-    rendition.on('relocated', (location: any) => {
-      if (isCancelled || !location || !location.start) return;
-      const animHost = pageAnimRef.current;
-      if (animHost) {
-        const style = pageTransitionRef.current.toLowerCase();
-        if (style !== 'none') {
-          const cls = `epub-turn-${style}-${navDirectionRef.current}`;
-          animHost.classList.remove(
-            'epub-turn-slide-next', 'epub-turn-slide-prev',
-            'epub-turn-fade-next', 'epub-turn-fade-prev',
-            'epub-turn-flip-next', 'epub-turn-flip-prev'
-          );
-          void animHost.offsetWidth;
-          animHost.classList.add(cls);
+      rendition.display().then(() => {
+        if (isCancelled) return;
+        setLoading(false);
+        applyStyles();
+      }).catch((err) => {
+        if (!isCancelled) {
+          console.error('Failed to display ePub rendition:', err);
+          setError(`Could not display this EPUB file: ${describe(err)}.`);
+          setLoading(false);
+        }
+      });
+
+      // Extract navigation & Table of Contents
+      opened.loaded.navigation.then((nav) => {
+        if (isCancelled) return;
+        if (onLoadTOC && nav && nav.toc) {
+          const tocItems: TOCItem[] = nav.toc.map((t, idx) => ({
+            id: t.id || `toc-${idx}`,
+            label: t.label ? t.label.trim() : `Chapter ${idx + 1}`,
+            href: t.href,
+          }));
+          onLoadTOC(tocItems);
+        }
+      }).catch(() => {
+        // TOC is best-effort; the book remains readable without it.
+      });
+
+      // Generate locations for accurate page calculation
+      opened.ready.then(() => {
+        opened.locations.generate(1600).then(() => {
+          if (isCancelled) return;
+          const total = opened.locations.length();
+          if (total > 0) {
+            const initialP = currentPage && currentPage > 0 && currentPage <= total ? currentPage : 1;
+            const pct = Math.round((initialP / total) * 100);
+            onPageChange(initialP, total, pct);
+          }
+        }).catch(() => {
+          // Page counts are best-effort; reading still works.
+        });
+      });
+
+      // Relocated event
+      rendition.on('relocated', (location: any) => {
+        if (isCancelled || !location || !location.start) return;
+        const animHost = pageAnimRef.current;
+        if (animHost) {
+          const style = pageTransitionRef.current.toLowerCase();
+          if (style !== 'none') {
+            const cls = `epub-turn-${style}-${navDirectionRef.current}`;
+            animHost.classList.remove(
+              'epub-turn-slide-next', 'epub-turn-slide-prev',
+              'epub-turn-fade-next', 'epub-turn-fade-prev',
+              'epub-turn-flip-next', 'epub-turn-flip-prev'
+            );
+            void animHost.offsetWidth;
+            animHost.classList.add(cls);
+          }
+        }
+        const cfi = location.start.cfi;
+        const progress = opened.locations.percentageFromCfi(cfi);
+        const total = opened.locations.length() || totalPages || 100;
+        const rawPage = opened.locations.locationFromCfi(cfi);
+        const page = typeof rawPage === 'number' ? rawPage : (Number(rawPage) || currentPage || 1);
+        const percentage = Math.round((progress || 0) * 100);
+        onPageChange(page, total, percentage);
+      });
+    };
+
+    (async () => {
+      try {
+        if (url.startsWith('blob:')) {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status} while reading local file`);
+          const buf = await res.arrayBuffer();
+          if (isCancelled) return;
+          startRendition(ePub(buf));
+        } else {
+          startRendition(ePub(url));
+        }
+      } catch (err) {
+        console.error('Failed to open EPUB:', err);
+        if (!isCancelled) {
+          setError(`Could not open this EPUB file: ${describe(err)}.`);
+          setLoading(false);
         }
       }
-      const cfi = location.start.cfi;
-      const progress = book.locations.percentageFromCfi(cfi);
-      const total = book.locations.length() || totalPages || 100;
-      const rawPage = book.locations.locationFromCfi(cfi);
-      const page = typeof rawPage === 'number' ? rawPage : (Number(rawPage) || currentPage || 1);
-      const percentage = Math.round((progress || 0) * 100);
-      onPageChange(page, total, percentage);
-    });
+    })();
 
     return () => {
       isCancelled = true;
       try {
-        rendition.destroy();
-        book.destroy();
+        renditionRef.current?.destroy();
+        renditionRef.current = null;
+      } catch {
+        // ignore
+      }
+      try {
+        book?.destroy();
+        bookRef.current = null;
       } catch {
         // ignore
       }
     };
-  }, [url]);
+  }, [url, retryKey]);
 
   // Update styles whenever settings change
   useEffect(() => {
@@ -335,6 +386,13 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
       >
         <div className="font-medium mb-2" style={{ color: errorAccent, fontSize: '14px' }}>Error loading EPUB</div>
         <div className="text-[13px] max-w-md" style={{ color: currentTheme.muted }}>{error}</div>
+        <button
+          onClick={() => setRetryKey((k) => k + 1)}
+          className="mt-4 px-4 h-9 rounded-lg text-[13px] font-medium transition-colors"
+          style={{ backgroundColor: 'rgba(216,27,108,0.14)', color: '#e5488f', border: '1px solid rgba(216,27,108,0.35)' }}
+        >
+          Try again
+        </button>
       </div>
     );
   }
