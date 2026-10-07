@@ -606,14 +606,53 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         totalPages={totalPages}
       />
 
-      {/* Main Reader Content Area */}
-      <main
-        className="flex-1 w-full min-h-0 relative overflow-hidden flex flex-col"
+      {/* Main Reader Content Area — side panels dock inline instead of floating over the app */}
+      <div
+        className="flex-1 w-full min-h-0 relative overflow-hidden flex flex-row"
         style={{
           backgroundColor: currentTheme.bg,
           color: currentTheme.text,
         }}
       >
+        <TOCDrawer
+          isOpen={isTOCOpen}
+          onClose={() => setIsTOCOpen(false)}
+          toc={toc}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onNavigate={(item) => {
+            if (item.page !== undefined) {
+              handleNavigateToPage(item.page);
+            } else if (item.href && epubNavigateRef.current) {
+              epubNavigateRef.current(item.href);
+            }
+          }}
+          theme={settings.theme}
+        />
+
+        <BookmarksDrawer
+          isOpen={isBookmarksOpen}
+          onClose={() => setIsBookmarksOpen(false)}
+          bookmarks={bookmarks}
+          currentPage={currentPage}
+          onNavigateToPage={handleNavigateToPage}
+          onAddBookmark={handleAddBookmark}
+          onRemoveBookmark={handleRemoveBookmark}
+          theme={settings.theme}
+        />
+
+        <AnnotationsDrawer
+          isOpen={isAnnotationsOpen}
+          onClose={() => setIsAnnotationsOpen(false)}
+          annotations={annotations}
+          currentPage={currentPage}
+          onNavigateToPage={handleNavigateToPage}
+          onAddAnnotation={handleAddAnnotation}
+          onRemoveAnnotation={handleRemoveAnnotation}
+          theme={settings.theme}
+        />
+
+        <main className="flex-1 min-w-0 min-h-0 relative overflow-hidden flex flex-col">
         {isResolving ? (
           <div
             className="flex-1 w-full h-full flex flex-col items-center justify-center space-y-3"
@@ -678,45 +717,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             )}
           </>
         )}
-      </main>
-
-      {/* Drawers */}
-      <TOCDrawer
-        isOpen={isTOCOpen}
-        onClose={() => setIsTOCOpen(false)}
-        toc={toc}
-        currentPage={currentPage}
-        onNavigate={(item) => {
-          if (item.page !== undefined) {
-            handleNavigateToPage(item.page);
-          } else if (item.href && epubNavigateRef.current) {
-            epubNavigateRef.current(item.href);
-          }
-        }}
-        theme={settings.theme}
-      />
-
-      <BookmarksDrawer
-        isOpen={isBookmarksOpen}
-        onClose={() => setIsBookmarksOpen(false)}
-        bookmarks={bookmarks}
-        currentPage={currentPage}
-        onNavigateToPage={handleNavigateToPage}
-        onAddBookmark={handleAddBookmark}
-        onRemoveBookmark={handleRemoveBookmark}
-        theme={settings.theme}
-      />
-
-      <AnnotationsDrawer
-        isOpen={isAnnotationsOpen}
-        onClose={() => setIsAnnotationsOpen(false)}
-        annotations={annotations}
-        currentPage={currentPage}
-        onNavigateToPage={handleNavigateToPage}
-        onAddAnnotation={handleAddAnnotation}
-        onRemoveAnnotation={handleRemoveAnnotation}
-        theme={settings.theme}
-      />
+        </main>
+      </div>
 
       {/* Search Overlay */}
       <SearchOverlay
