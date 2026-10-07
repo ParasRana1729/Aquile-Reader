@@ -20,7 +20,12 @@ export interface ReaderThemeConfig {
   id: ReadingTheme;
   name: string;
   bg: string;
+  /** Backdrop behind individual pages in paged views (visible in the gaps and side gutters). */
+  canvasBg: string;
+  /** Page surface colour. */
   pageBg: string;
+  /** 1px outline drawn around each page so it reads as a separate sheet. */
+  pageBorder: string;
   text: string;
   muted: string;
   border: string;
@@ -34,7 +39,9 @@ export const READER_THEMES: Record<ReadingTheme, ReaderThemeConfig> = {
     id: 'night',
     name: 'Night',
     bg: '#262626',
-    pageBg: '#262626',
+    canvasBg: '#272c33',
+    pageBg: '#252525',
+    pageBorder: '#3b4048',
     text: '#EAEAEA',
     muted: '#999999',
     border: '#333338',
@@ -46,7 +53,9 @@ export const READER_THEMES: Record<ReadingTheme, ReaderThemeConfig> = {
     id: 'sepia',
     name: 'Sepia',
     bg: '#fbf0d9',
+    canvasBg: '#e6d7b8',
     pageBg: '#fbf0d9',
+    pageBorder: '#cdb98f',
     text: '#5f4b32',
     muted: '#8a7358',
     border: '#e4d4b8',
@@ -58,7 +67,9 @@ export const READER_THEMES: Record<ReadingTheme, ReaderThemeConfig> = {
     id: 'white',
     name: 'White',
     bg: '#ffffff',
+    canvasBg: '#e4e6ea',
     pageBg: '#ffffff',
+    pageBorder: '#cfd3d9',
     text: '#111111',
     muted: '#666666',
     border: '#e5e5e5',
@@ -70,7 +81,9 @@ export const READER_THEMES: Record<ReadingTheme, ReaderThemeConfig> = {
     id: 'gray',
     name: 'Gray',
     bg: '#333333',
+    canvasBg: '#26282c',
     pageBg: '#333333',
+    pageBorder: '#4a4d52',
     text: '#e0e0e0',
     muted: '#aaaaaa',
     border: '#404040',
@@ -91,37 +104,37 @@ export const FONT_FAMILIES: Record<FontFamilyId, FontFamilyConfig> = {
   inter: {
     id: 'inter',
     name: 'Inter',
-    cssFamily: "'Segoe UI Variable Text', 'Segoe UI', 'Inter', system-ui, sans-serif",
+    cssFamily: "'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif",
     description: 'Clean modern sans',
   },
   merriweather: {
     id: 'merriweather',
     name: 'Merriweather',
-    cssFamily: "Georgia, 'Cambria', 'Merriweather', 'Times New Roman', serif",
+    cssFamily: "'Merriweather', 'Gelasio', Georgia, 'Cambria', serif",
     description: 'Designed for screens',
   },
   georgia: {
     id: 'georgia',
     name: 'Georgia',
-    cssFamily: "Georgia, 'Cambria', 'Times New Roman', serif",
+    cssFamily: "Georgia, 'Gelasio', 'Cambria', 'Times New Roman', serif",
     description: 'Classic editorial serif',
   },
   jetbrains: {
     id: 'jetbrains',
     name: 'JetBrains Mono',
-    cssFamily: "'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace",
+    cssFamily: "'JetBrains Mono', 'Cascadia Mono', Consolas, monospace",
     description: 'Developer monospace',
   },
   bookerly: {
     id: 'bookerly',
     name: 'Bookerly',
-    cssFamily: "Georgia, 'Cambria', 'Bookerly', 'Times New Roman', serif",
+    cssFamily: "'Bookerly', 'Literata', 'Gelasio', Georgia, 'Cambria', serif",
     description: 'Warm literary serif',
   },
   literata: {
     id: 'literata',
     name: 'Literata',
-    cssFamily: "Georgia, 'Cambria', 'Literata', 'Times New Roman', serif",
+    cssFamily: "'Literata', 'Gelasio', Georgia, 'Cambria', serif",
     description: 'Digital book serif',
   },
   system: {
@@ -133,26 +146,26 @@ export const FONT_FAMILIES: Record<FontFamilyId, FontFamilyConfig> = {
   dyslexic: {
     id: 'dyslexic',
     name: 'OpenDyslexic',
-    cssFamily: "'OpenDyslexic', 'Comic Sans MS', cursive, sans-serif",
+    cssFamily: "'OpenDyslexic', cursive, sans-serif",
     description: 'High readability',
   },
   // Backward compatibility aliases
   serif: {
     id: 'serif',
     name: 'Serif',
-    cssFamily: "Georgia, 'Cambria', 'Merriweather', 'Times New Roman', serif",
+    cssFamily: "'Merriweather', 'Gelasio', Georgia, 'Cambria', serif",
     description: 'Merriweather / Georgia',
   },
   sans: {
     id: 'sans',
     name: 'Sans',
-    cssFamily: "'Segoe UI Variable Text', 'Segoe UI', 'Inter', system-ui, sans-serif",
+    cssFamily: "'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif",
     description: 'Segoe UI / Inter',
   },
   mono: {
     id: 'mono',
     name: 'Monospace',
-    cssFamily: "'Cascadia Mono', Consolas, 'JetBrains Mono', monospace",
+    cssFamily: "'JetBrains Mono', 'Cascadia Mono', Consolas, monospace",
     description: 'JetBrains / Consolas',
   },
 };
@@ -196,9 +209,9 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 
 export function getFontFamilyCss(fontFamily?: string, customFont?: string): string {
   if (customFont && customFont.trim().length > 0) {
-    return `"${customFont.trim()}", Georgia, 'Segoe UI', system-ui, serif`;
+    return `"${customFont.trim()}", 'Merriweather', 'Gelasio', Georgia, 'Segoe UI', system-ui, serif`;
   }
-  if (!fontFamily) return "Georgia, 'Cambria', 'Times New Roman', serif";
+  if (!fontFamily) return "'Merriweather', 'Gelasio', Georgia, 'Cambria', serif";
   const match = FONT_FAMILIES[fontFamily as FontFamilyId];
   if (match) return match.cssFamily;
   return fontFamily;

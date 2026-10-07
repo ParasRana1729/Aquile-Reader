@@ -1,21 +1,25 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import ePub, { Book, Rendition } from 'epubjs';
 import {
   ReaderSettings,
   READER_THEMES,
   TOCItem,
   getFontFamilyCss,
+  Annotation,
 } from '../../types/reader';
 import { getPageTransition, subscribePageTransition } from '../../utils/readerPrefs';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { parseEpubToPages, EpubPage } from '../../utils/epubPaginator';
+import { readBookBytes } from '../../utils/ipc';
+import { ChevronLeft, ChevronRight, Copy, Highlighter, Volume2 } from 'lucide-react';
 
 export interface EpubSearchResult {
   cfi?: string;
   excerpt: string;
+  page?: number;
 }
 
 interface EpubViewerProps {
   url: string;
+  bookTitle?: string;
   settings: ReaderSettings;
   currentPage: number;
   totalPages: number;
@@ -23,10 +27,14 @@ interface EpubViewerProps {
   onLoadTOC?: (toc: TOCItem[]) => void;
   onNavigateRef?: React.MutableRefObject<((target: string | number) => void) | null>;
   onSearchRef?: React.MutableRefObject<((query: string) => Promise<EpubSearchResult[]>) | null>;
+  onJumpToPageRef?: React.MutableRefObject<((page: number) => void) | null>;
+  onAddAnnotation?: (annotation: Omit<Annotation, 'id' | 'createdAt'>) => void;
+  onSpeakText?: (text: string) => void;
 }
 
 export const EpubViewer: React.FC<EpubViewerProps> = ({
   url,
+  bookTitle: propBookTitle,
   settings,
   currentPage,
   totalPages,
@@ -34,44 +42,117 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   onLoadTOC,
   onNavigateRef,
   onSearchRef,
+  onJumpToPageRef,
+  onAddAnnotation,
+  onSpeakText,
 }) => {
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const pageAnimRef = useRef<HTMLDivElement>(null);
-  const navDirectionRef = useRef<'next' | 'prev'>('next');
-  const bookRef = useRef<Book | null>(null);
-  const renditionRef = useRef<Rendition | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pageRefs = useRef<Map<number, HTMLElement>>(new Map());
+  const initialPageRef = useRef(currentPage || 1);
+  const isNavigatingRef = useRef(false);
+  const navTimerRef = useRef<number | null>(null);
+
+  const [pages, setPages] = useState<EpubPage[]>([]);
+  const [metaTitle, setMetaTitle] = useState(propBookTitle || 'Book');
+  const [metaAuthor, setMetaAuthor] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryKey, setRetryKey] = useState(0);
-  const pageTransitionRef = useRef(getPageTransition());
 
-  useEffect(() => subscribePageTransition((style) => {
-    pageTransitionRef.current = style;
-  }), []);
+  // Transition animation state
+  const [turnStyle, setTurnStyle] = useState(getPageTransition());
+  const [animClass, setAnimClass] = useState('');
+
+  // Selection tooltip state
+  const [selectionRange, setSelectionRange] = useState<{
+    text: string;
+    rect: DOMRect;
+  } | null>(null);
+
+  useEffect(() => {
+    return subscribePageTransition((style) => {
+      setTurnStyle(style);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current !== null) {
+        window.clearTimeout(navTimerRef.current);
+      }
+    };
+  }, []);
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
+  const zoomFactor = typeof settings.zoom === 'number' && settings.zoom > 0 ? settings.zoom : 1.0;
+  const effectiveFontSize = Math.max(10, Math.min(60, Math.round((settings.fontSize || 18) * zoomFactor)));
+  const effectiveLineSpacing = settings.lineSpacing || 1.6;
+  const effectiveParaSpacing = Math.round((settings.paragraphSpacing ?? 16) * zoomFactor);
+  const fontCss = getFontFamilyCss(settings.fontFamily, settings.customFont);
+  const letterSpacing = `${settings.letterSpacing ?? 0}px`;
+  const align = settings.textAlign || 'justify';
+  const marginPx = typeof settings.margin === 'number' ? settings.margin : 32;
+  const pagePadX = Math.max(24, marginPx);
+  const pageShadow = currentTheme.isDark
+    ? '0 1px 3px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.28)'
+    : '0 1px 2px rgba(0,0,0,0.10), 0 8px 24px rgba(0,0,0,0.14)';
 
-  // Jump / Navigate ref
-  const navigateTo = useCallback((target: string | number) => {
-    if (!renditionRef.current) return;
-    if (target === 'next') {
-      navDirectionRef.current = 'next';
-      renditionRef.current.next();
-      return;
+  // Jump to specific page
+  const jumpToPage = useCallback(
+    (targetPage: number) => {
+      if (!pages.length) return;
+      const target = Math.max(1, Math.min(targetPage, pages.length));
+      const el = pageRefs.current.get(target);
+      if (el && containerRef.current) {
+        isNavigatingRef.current = true;
+        if (navTimerRef.current !== null) {
+          window.clearTimeout(navTimerRef.current);
+        }
+
+        if (turnStyle === 'Slide') {
+          setAnimClass('transition-transform duration-300 ease-out');
+        } else if (turnStyle === 'Fade') {
+          setAnimClass('transition-opacity duration-300 ease-in-out opacity-40');
+          setTimeout(() => setAnimClass('transition-opacity duration-300 ease-in-out opacity-100'), 50);
+        }
+
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        const pct = Math.round(((target - 1) / pages.length) * 100);
+        onPageChange(target, pages.length, pct);
+
+        navTimerRef.current = window.setTimeout(() => {
+          isNavigatingRef.current = false;
+          setAnimClass('');
+        }, 600);
+      }
+    },
+    [pages.length, onPageChange, turnStyle]
+  );
+
+  useEffect(() => {
+    if (onJumpToPageRef) {
+      onJumpToPageRef.current = jumpToPage;
     }
-    if (target === 'prev') {
-      navDirectionRef.current = 'prev';
-      renditionRef.current.prev();
-      return;
-    }
-    if (typeof target === 'string') {
-      renditionRef.current.display(target);
-    } else if (typeof target === 'number' && bookRef.current) {
-      // Callers use 1-based page numbers; locations are 0-based segments.
-      const cfi = bookRef.current.locations.cfiFromLocation(Math.max(0, target - 1));
-      if (cfi) renditionRef.current.display(cfi);
-    }
-  }, []);
+  }, [onJumpToPageRef, jumpToPage]);
+
+  // Navigate ref handler (target can be 'next', 'prev', number, or string)
+  const navigateTo = useCallback(
+    (target: string | number) => {
+      if (target === 'next') {
+        jumpToPage(currentPage + 1);
+      } else if (target === 'prev') {
+        jumpToPage(currentPage - 1);
+      } else if (typeof target === 'number') {
+        jumpToPage(target);
+      } else if (typeof target === 'string') {
+        const pageNum = parseInt(target, 10);
+        if (!isNaN(pageNum)) {
+          jumpToPage(pageNum);
+        }
+      }
+    },
+    [currentPage, jumpToPage]
+  );
 
   useEffect(() => {
     if (onNavigateRef) {
@@ -79,400 +160,414 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     }
   }, [onNavigateRef, navigateTo]);
 
-  // Search handler across EPUB spine
-  const searchEpub = useCallback(
+  // Search handler ref
+  const searchInEpub = useCallback(
     async (query: string): Promise<EpubSearchResult[]> => {
-      if (!bookRef.current || !query.trim()) return [];
+      if (!query || !query.trim() || !pages.length) return [];
+      const qLower = query.toLowerCase().trim();
       const results: EpubSearchResult[] = [];
-      try {
-        const spine = (bookRef.current as any).spine;
-        if (!spine || !spine.spineItems) return [];
-        for (const item of spine.spineItems) {
-          await item.load(bookRef.current.load.bind(bookRef.current));
-          const matches = item.find(query);
-          item.unload();
-          if (Array.isArray(matches)) {
-            for (const m of matches) {
-              results.push({ cfi: m.cfi, excerpt: m.excerpt || query });
-            }
+
+      for (const page of pages) {
+        for (const para of page.paragraphs) {
+          const idx = para.toLowerCase().indexOf(qLower);
+          if (idx !== -1) {
+            const start = Math.max(0, idx - 40);
+            const end = Math.min(para.length, idx + query.length + 40);
+            const snippet = (start > 0 ? '…' : '') + para.substring(start, end).trim() + (end < para.length ? '…' : '');
+            results.push({
+              excerpt: snippet,
+              page: page.pageNumber,
+            });
+            if (results.length >= 50) break;
           }
         }
-      } catch (e) {
-        console.warn('EPUB search error:', e);
+        if (results.length >= 50) break;
       }
+
       return results;
     },
-    []
+    [pages]
   );
 
   useEffect(() => {
     if (onSearchRef) {
-      onSearchRef.current = searchEpub;
+      onSearchRef.current = searchInEpub;
     }
-  }, [onSearchRef, searchEpub]);
+  }, [onSearchRef, searchInEpub]);
 
-  // Apply theme & font & typography customization
-  const applyStyles = useCallback(() => {
-    if (!renditionRef.current) return;
-    const rend = renditionRef.current;
-    const fontCss = getFontFamilyCss(settings.fontFamily, settings.customFont);
-    const letterSpacing = `${settings.letterSpacing ?? 0}px`;
-    const paraSpacing = `${settings.paragraphSpacing ?? 16}px`;
-    const align = settings.textAlign || 'justify';
-    const marginPx = typeof settings.margin === 'number' ? settings.margin : 32;
-
-    const themeRules = {
-      body: {
-        'background-color': `${currentTheme.bg} !important`,
-        color: `${currentTheme.text} !important`,
-        'font-family': `${fontCss} !important`,
-        'font-size': `${settings.fontSize}px !important`,
-        'line-height': `${settings.lineSpacing} !important`,
-        'letter-spacing': `${letterSpacing} !important`,
-        'text-align': `${align} !important`,
-        '-webkit-font-smoothing': 'antialiased !important',
-        'text-rendering': 'optimizeLegibility !important',
-        overflowWrap: 'break-word !important',
-        margin: '0 auto !important',
-        // Generous top margin per native paged rhythm (frames f_006/f_011):
-        // airy full-viewport single page, not cramped chrome-to-text.
-        padding: `64px ${marginPx}px 72px !important`,
-      },
-      p: {
-        'line-height': `${settings.lineSpacing} !important`,
-        'letter-spacing': `${letterSpacing} !important`,
-        'text-align': `${align} !important`,
-        'margin-bottom': `${paraSpacing} !important`,
-        hyphens: 'auto !important',
-        color: `${currentTheme.text} !important`,
-      },
-      'h1, h2, h3, h4, h5, h6': {
-        color: `${currentTheme.text} !important`,
-        'font-family': `${fontCss} !important`,
-        'letter-spacing': `${letterSpacing} !important`,
-      },
-      a: {
-        color: 'inherit !important',
-        'text-decoration': 'underline !important',
-      },
-      img: {
-        'max-width': '100% !important',
-        height: 'auto !important',
-      },
-    };
-
-    rend.themes.register('custom-aquile', themeRules);
-    rend.themes.select('custom-aquile');
-  }, [
-    currentTheme,
-    settings.fontFamily,
-    settings.customFont,
-    settings.fontSize,
-    settings.lineSpacing,
-    settings.letterSpacing,
-    settings.paragraphSpacing,
-    settings.textAlign,
-    settings.margin,
-  ]);
-
-  // Initialize ePub.
-  // NOTE: blob: object URLs are resolved to raw bytes before handing the book
-  // to epubjs. epubjs 0.3.x mis-resolves the book's internal spine/resource
-  // URLs against a blob: base, which makes rendition.display() reject with
-  // "Failed to fetch" for real local files (fixtures work because they are
-  // served over http(s) with a clean base).
+  // Load and parse EPUB book
   useEffect(() => {
-    if (!viewerRef.current) return;
     let isCancelled = false;
     setLoading(true);
     setError(null);
 
-    const host = viewerRef.current;
-    host.innerHTML = '';
-
-    let book: Book | null = null;
-
-    const describe = (err: unknown): string => {
-      if (err instanceof Error && err.message) return err.message;
+    async function loadBook() {
       try {
-        return String(err);
-      } catch {
-        return 'unknown error';
-      }
-    };
-
-    const startRendition = (opened: Book) => {
-      book = opened;
-      bookRef.current = opened;
-
-      const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
-      const rendition = opened.renderTo(host, {
-        width: '100%',
-        height: '100%',
-        flow: 'paginated',
-        spread: isDual ? 'always' : 'none',
-        // Native is a single full-viewport page at 1280px logical width
-        // (frames f_006/f_011); keep single-page there and only allow a
-        // dual spread on wider viewports.
-        minSpreadWidth: 1400,
-      });
-      renditionRef.current = rendition;
-
-      opened.ready.catch((err) => {
-        if (!isCancelled) {
-          console.error('Failed to open EPUB:', err);
-          setError(`Could not open this EPUB file: ${describe(err)}.`);
-          setLoading(false);
-        }
-      });
-
-      rendition.display().then(() => {
-        if (isCancelled) return;
-        setLoading(false);
-        applyStyles();
-      }).catch((err) => {
-        if (!isCancelled) {
-          console.error('Failed to display ePub rendition:', err);
-          setError(`Could not display this EPUB file: ${describe(err)}.`);
-          setLoading(false);
-        }
-      });
-
-      // Extract navigation & Table of Contents
-      opened.loaded.navigation.then((nav) => {
-        if (isCancelled) return;
-        if (onLoadTOC && nav && nav.toc) {
-          const tocItems: TOCItem[] = nav.toc.map((t, idx) => ({
-            id: t.id || `toc-${idx}`,
-            label: t.label ? t.label.trim() : `Chapter ${idx + 1}`,
-            href: t.href,
-          }));
-          onLoadTOC(tocItems);
-        }
-      }).catch(() => {
-        // TOC is best-effort; the book remains readable without it.
-      });
-
-      // Generate locations for accurate page calculation
-      opened.ready.then(() => {
-        opened.locations.generate(1600).then(() => {
-          if (isCancelled) return;
-          const total = opened.locations.length();
-          if (total > 0) {
-            const initialP = currentPage && currentPage > 0 && currentPage <= total ? currentPage : 1;
-            const pct = Math.round((initialP / total) * 100);
-            onPageChange(initialP, total, pct);
-          }
-        }).catch(() => {
-          // Page counts are best-effort; reading still works.
-        });
-      });
-
-      // Relocated event
-      rendition.on('relocated', (location: any) => {
-        if (isCancelled || !location || !location.start) return;
-        const animHost = pageAnimRef.current;
-        if (animHost) {
-          const style = pageTransitionRef.current.toLowerCase();
-          if (style !== 'none') {
-            const cls = `epub-turn-${style}-${navDirectionRef.current}`;
-            animHost.classList.remove(
-              'epub-turn-slide-next', 'epub-turn-slide-prev',
-              'epub-turn-fade-next', 'epub-turn-fade-prev',
-              'epub-turn-flip-next', 'epub-turn-flip-prev'
-            );
-            void animHost.offsetWidth;
-            animHost.classList.add(cls);
-          }
-        }
-        const cfi = location.start.cfi;
-        const progress = opened.locations.percentageFromCfi(cfi);
-        const total = opened.locations.length() || totalPages || 100;
-        const rawPage = opened.locations.locationFromCfi(cfi);
-        const idx = typeof rawPage === 'number' ? rawPage : (Number(rawPage) || 0);
-        // locations are 0-based segments; the reader counts pages from 1.
-        const page = Math.min(Math.max(1, total), Math.max(1, idx + 1));
-        const percentage = Math.round((progress || 0) * 100);
-        onPageChange(page, total, percentage);
-      });
-    };
-
-    (async () => {
-      try {
-        if (url.startsWith('blob:')) {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status} while reading local file`);
-          const buf = await res.arrayBuffer();
-          if (isCancelled) return;
-          startRendition(ePub(buf));
+        let arrayBuffer: ArrayBuffer;
+        if (url.startsWith('blob:') || url.startsWith('http')) {
+          const resp = await fetch(url);
+          arrayBuffer = await resp.arrayBuffer();
         } else {
-          startRendition(ePub(url));
+          const bytes = await readBookBytes(url);
+          if (!bytes) {
+            throw new Error('Unable to read book bytes');
+          }
+          arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
         }
-      } catch (err) {
-        console.error('Failed to open EPUB:', err);
+
+        if (isCancelled) return;
+
+        const parsed = await parseEpubToPages(arrayBuffer, {
+          fontSize: settings.fontSize,
+          zoom: settings.zoom,
+          bookTitle: propBookTitle,
+        });
+
+        if (isCancelled) return;
+
+        setPages(parsed.pages);
+        if (parsed.title) setMetaTitle(parsed.title);
+        if (parsed.author) setMetaAuthor(parsed.author);
+
+        if (onLoadTOC && parsed.toc.length > 0) {
+          onLoadTOC(parsed.toc);
+        }
+
+        // Notify parent of total pages
+        const startPage = Math.min(Math.max(1, initialPageRef.current), parsed.pages.length);
+        const initialPct = Math.round(((startPage - 1) / parsed.pages.length) * 100);
+        onPageChange(startPage, parsed.pages.length, initialPct);
+
+        setLoading(false);
+
+        // Scroll to initial page after rendering
+        setTimeout(() => {
+          if (!isCancelled && containerRef.current) {
+            const targetEl = pageRefs.current.get(startPage);
+            if (targetEl) {
+              targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+            }
+          }
+        }, 80);
+      } catch (err: unknown) {
         if (!isCancelled) {
-          setError(`Could not open this EPUB file: ${describe(err)}.`);
+          console.error('[EpubViewer] Failed to load EPUB:', err);
+          setError(err instanceof Error ? err.message : 'Failed to parse EPUB file');
           setLoading(false);
         }
       }
-    })();
+    }
+
+    loadBook();
 
     return () => {
       isCancelled = true;
-      try {
-        renditionRef.current?.destroy();
-        renditionRef.current = null;
-      } catch {
-        // ignore
-      }
-      try {
-        book?.destroy();
-        bookRef.current = null;
-      } catch {
-        // ignore
-      }
     };
-  }, [url, retryKey]);
+  }, [url, propBookTitle]);
 
-  // Update styles whenever settings change
-  useEffect(() => {
-    applyStyles();
-  }, [applyStyles]);
+  // Track active page during continuous vertical scrolling
+  const handleScroll = useCallback(() => {
+    if (isNavigatingRef.current || !containerRef.current || !pages.length) return;
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const focalY = containerRect.top + Math.min(container.clientHeight * 0.35, 260);
 
-  // Handle two-column spread layout toggle & resize
-  useEffect(() => {
-    if (renditionRef.current) {
-      const isDual = settings.spreadMode === 'dual' || settings.isTwoColumn;
-      renditionRef.current.spread(isDual ? 'always' : 'none');
-      if (viewerRef.current) {
-        renditionRef.current.resize(
-          viewerRef.current.clientWidth || window.innerWidth,
-          viewerRef.current.clientHeight || window.innerHeight
-        );
+    let activePage = currentPage;
+    let foundFocal = false;
+    let maxVisibleHeight = -1;
+    let fallbackPage = currentPage;
+
+    pages.forEach((page) => {
+      const el = pageRefs.current.get(page.pageNumber);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+
+      // 1. Focal reading line check: user's gaze is primarily reading near the upper third
+      if (rect.top <= focalY && rect.bottom > focalY) {
+        activePage = page.pageNumber;
+        foundFocal = true;
       }
+
+      // 2. Track page with maximum visible overlap in container
+      const visibleTop = Math.max(containerRect.top, rect.top);
+      const visibleBottom = Math.min(containerRect.bottom, rect.bottom);
+      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+      if (visibleHeight > maxVisibleHeight) {
+        maxVisibleHeight = visibleHeight;
+        fallbackPage = page.pageNumber;
+      }
+    });
+
+    const targetPage = foundFocal ? activePage : fallbackPage;
+    if (targetPage !== currentPage) {
+      const pct = Math.round(((targetPage - 1) / pages.length) * 100);
+      onPageChange(targetPage, pages.length, pct);
     }
-  }, [settings.spreadMode, settings.isTwoColumn]);
+  }, [pages, currentPage, onPageChange]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
-        navDirectionRef.current = 'next';
-        renditionRef.current?.next();
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        navDirectionRef.current = 'prev';
-        renditionRef.current?.prev();
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
+        e.preventDefault();
+        jumpToPage(currentPage + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
+        e.preventDefault();
+        jumpToPage(currentPage - 1);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        jumpToPage(1);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        jumpToPage(pages.length);
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [currentPage, jumpToPage, pages.length]);
 
-  const handlePrev = () => {
-    navDirectionRef.current = 'prev';
-    renditionRef.current?.prev();
-  };
-  const handleNext = () => {
-    navDirectionRef.current = 'next';
-    renditionRef.current?.next();
+  // Handle text selection for interactive highlighting and notes
+  const handleMouseUp = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+      setSelectionRange(null);
+      return;
+    }
+
+    const text = sel.toString().trim();
+    if (text.length > 0) {
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      setSelectionRange({ text, rect });
+    }
   };
 
-  if (error) {
-    const errorAccent = currentTheme.isDark ? '#f87171' : '#b91c1c';
+  const handleCopySelection = () => {
+    if (selectionRange?.text) {
+      navigator.clipboard.writeText(selectionRange.text);
+      setSelectionRange(null);
+    }
+  };
+
+  const handleSpeakSelection = () => {
+    if (selectionRange?.text && onSpeakText) {
+      onSpeakText(selectionRange.text);
+      setSelectionRange(null);
+    }
+  };
+
+  const handleHighlight = (color: string) => {
+    if (selectionRange?.text && onAddAnnotation) {
+      onAddAnnotation({
+        bookId: '',
+        bookTitle: metaTitle,
+        page: currentPage,
+        text: selectionRange.text,
+        selectedText: selectionRange.text,
+        color,
+      });
+      setSelectionRange(null);
+    }
+  };
+
+  // Loading state
+  if (loading) {
     return (
       <div
-        className="flex flex-col items-center justify-center h-full w-full p-6 text-center select-none"
-        style={{
-          backgroundColor: currentTheme.bg,
-          color: currentTheme.text,
-        }}
+        className="w-full h-full flex flex-col items-center justify-center transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.bg, color: currentTheme.text }}
       >
-        <div className="font-medium mb-2" style={{ color: errorAccent, fontSize: '14px' }}>Error loading EPUB</div>
-        <div className="text-[13px] max-w-md" style={{ color: currentTheme.muted }}>{error}</div>
-        <button
-          onClick={() => setRetryKey((k) => k + 1)}
-          className="mt-4 px-4 h-9 rounded-lg text-[13px] font-medium transition-colors"
-          style={{ backgroundColor: 'rgba(216,27,108,0.14)', color: '#e5488f', border: '1px solid rgba(216,27,108,0.35)' }}
-        >
-          Try again
-        </button>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin border-[#0078d4]" />
+          <span className="text-sm font-sans tracking-wide opacity-75">
+            Opening book...
+          </span>
+        </div>
       </div>
     );
   }
 
-  // Single-page rendition stays in a centered, airy content column at
-  // ~1280px logical width (native f_006/f_011); an explicit dual spread
-  // keeps the full viewport on wider screens.
-  const isDualPage = settings.spreadMode === 'dual' || settings.isTwoColumn;
+  // Error state
+  if (error) {
+    return (
+      <div
+        className="w-full h-full flex flex-col items-center justify-center p-8 transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.bg, color: currentTheme.text }}
+      >
+        <div className="max-w-md p-6 bg-red-500/10 border border-red-500/20 rounded-xl text-center space-y-4">
+          <p className="font-semibold text-red-400">Failed to load EPUB book</p>
+          <p className="text-xs opacity-75 break-words">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="flex-1 w-full h-full relative overflow-hidden flex flex-col select-text"
+      ref={containerRef}
+      onScroll={handleScroll}
+      onMouseUp={handleMouseUp}
+      className={`w-full h-full overflow-y-auto overflow-x-hidden relative select-text scroll-smooth ${animClass}`}
       style={{
-        backgroundColor: currentTheme.bg,
+        backgroundColor: currentTheme.canvasBg,
         color: currentTheme.text,
       }}
     >
-      {loading && (
-        <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center space-y-3"
-          style={{ backgroundColor: currentTheme.bg }}
-        >
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span
-            className="text-[13px] font-sans tracking-wide"
-            style={{ color: currentTheme.muted }}
+      {/* Edge page-turn zones matching native Windows Aquile Reader */}
+      <button
+        type="button"
+        aria-label="Previous Page"
+        onClick={() => jumpToPage(currentPage - 1)}
+        className="fixed left-0 top-14 bottom-12 w-[8%] max-w-[80px] z-20 opacity-0 hover:opacity-100 transition-opacity duration-150 flex items-center justify-start pl-2 pointer-events-auto cursor-pointer group"
+      >
+        <div className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90 shadow-md group-hover:scale-105 transition-transform">
+          <ChevronLeft className="w-5 h-5" />
+        </div>
+      </button>
+
+      <button
+        type="button"
+        aria-label="Next Page"
+        onClick={() => jumpToPage(currentPage + 1)}
+        className="fixed right-0 top-14 bottom-12 w-[8%] max-w-[80px] z-20 opacity-0 hover:opacity-100 transition-opacity duration-150 flex items-center justify-end pr-2 pointer-events-auto cursor-pointer group"
+      >
+        <div className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90 shadow-md group-hover:scale-105 transition-transform">
+          <ChevronRight className="w-5 h-5" />
+        </div>
+      </button>
+
+      {/* Main Reading Canvas: every page is its own bordered sheet on the themed backdrop
+          (native Windows Aquile Reader, frame f_011). */}
+      <div
+        className={`mx-auto w-full px-4 py-6 flex flex-col gap-4 ${
+          settings.isTwoColumn ? 'max-w-6xl' : 'max-w-3xl'
+        }`}
+      >
+        {pages.map((page) => (
+          <article
+            key={page.pageNumber}
+            ref={(el) => {
+              if (el) pageRefs.current.set(page.pageNumber, el);
+              else pageRefs.current.delete(page.pageNumber);
+            }}
+            data-page-number={page.pageNumber}
+            className="relative w-full flex flex-col transition-colors duration-200"
+            style={{
+              fontFamily: fontCss,
+              backgroundColor: currentTheme.pageBg,
+              color: currentTheme.text,
+              border: `1px solid ${currentTheme.pageBorder}`,
+              borderRadius: '2px',
+              boxShadow: pageShadow,
+              minHeight: 'max(88vh, 880px)',
+              padding: `40px ${pagePadX}px 28px`,
+              scrollMarginTop: '16px',
+            }}
           >
-            Opening book…
-          </span>
+            <div className="flex-1">
+            {/* Running Document Header matching native Windows Aquile Reader */}
+            <div className="flex items-center justify-between pb-6 select-none opacity-50 text-xs italic tracking-wider">
+              <span>{metaTitle}</span>
+              <span className="font-sans font-medium text-[11px] not-italic">
+                {metaAuthor || 'Aquile Reader'}
+              </span>
+            </div>
+
+            {/* Chapter Header if start of chapter */}
+            {page.chapterTitle && (
+              <h2 className="text-xl md:text-2xl font-bold mb-8 tracking-tight opacity-90 border-b pb-3 border-inherit">
+                {page.chapterTitle}
+              </h2>
+            )}
+
+            {/* Page Paragraphs formatted with typography preferences */}
+            <div
+              className={`leading-relaxed select-text space-y-4 ${
+                settings.isTwoColumn ? 'columns-2 gap-8' : ''
+              }`}
+              style={{
+                fontSize: `${effectiveFontSize}px`,
+                lineHeight: effectiveLineSpacing,
+                letterSpacing,
+                textAlign: align,
+              }}
+            >
+              {page.paragraphs.map((para, pIdx) => (
+                <p
+                  key={pIdx}
+                  id={page.anchorIds?.[pIdx]}
+                  className="hyphens-auto"
+                  style={{
+                    marginBottom: `${effectiveParaSpacing}px`,
+                  }}
+                >
+                  {para}
+                </p>
+              ))}
+            </div>
+            </div>
+
+            {/* Running Document Footer: authentic page number badge */}
+            <div className="mt-8 pt-4 border-t border-inherit/20 flex items-center justify-between text-xs select-none opacity-60">
+              <span className="italic font-serif">
+                {metaTitle}
+              </span>
+              <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-black/10 dark:bg-white/10">
+                {page.pageNumber} of {pages.length}
+              </span>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* Floating Selection Tooltip for Highlighting / Copying / TTS */}
+      {selectionRange && (
+        <div
+          className="fixed z-50 flex items-center gap-1.5 p-1.5 bg-neutral-900/90 text-white rounded-lg shadow-xl backdrop-blur-md border border-white/20 -translate-x-1/2 -translate-y-full mb-2 animate-in fade-in zoom-in-95 duration-100"
+          style={{
+            left: `${selectionRange.rect.left + selectionRange.rect.width / 2}px`,
+            top: `${selectionRange.rect.top - 8}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={handleCopySelection}
+            className="p-1.5 hover:bg-white/20 rounded transition-colors"
+            title="Copy Text"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+          {onSpeakText && (
+            <button
+              type="button"
+              onClick={handleSpeakSelection}
+              className="p-1.5 hover:bg-white/20 rounded transition-colors"
+              title="Read Aloud"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
+          )}
+          {onAddAnnotation && (
+            <div className="flex items-center gap-1 pl-1 border-l border-white/20">
+              {['#ffeb3b', '#a5d6a7', '#90caf9', '#f48fb1'].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => handleHighlight(color)}
+                  className="w-5 h-5 rounded-full border border-black/30 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: color }}
+                  title="Highlight"
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
-
-      {/* Main EPUB Reader Viewport */}
-      <div className="flex-1 w-full h-full relative flex items-center justify-center px-6 md:px-10 py-6">
-        <div
-          ref={pageAnimRef}
-          className="w-full h-full"
-          style={{
-            maxWidth: isDualPage ? '100%' : '960px',
-            margin: '0 auto',
-          }}
-        >
-          <div ref={viewerRef} className="w-full h-full" />
-        </div>
-
-        {/* Edge click zones for page turn (native behavior) */}
-        <button
-          onClick={handlePrev}
-          aria-label="Previous page"
-          title="Previous page (←)"
-          className="absolute left-0 top-0 bottom-0 w-16 z-10 cursor-w-resize focus:outline-none"
-          style={{ background: 'transparent', border: 'none' }}
-        />
-        <button
-          onClick={handleNext}
-          aria-label="Next page"
-          title="Next page (→)"
-          className="absolute right-0 top-0 bottom-0 w-16 z-10 cursor-e-resize focus:outline-none"
-          style={{ background: 'transparent', border: 'none' }}
-        />
-
-        {/* Floating Side Prev/Next Arrows */}
-        <button
-          onClick={handlePrev}
-          className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/60 text-white/60 hover:text-white transition-all opacity-0 hover:opacity-100 focus:opacity-100 z-10"
-          title="Previous Page (Left Arrow)"
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <button
-          onClick={handleNext}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/60 text-white/60 hover:text-white transition-all opacity-0 hover:opacity-100 focus:opacity-100 z-10"
-          title="Next Page (Right Arrow)"
-        >
-          <ChevronRight size={24} />
-        </button>
-      </div>
     </div>
   );
 };

@@ -8,6 +8,22 @@ const isTauriEnv =
 // Default mock books in case running outside Tauri
 const FALLBACK_BOOKS: BookWithProgress[] = [
   {
+    id: 'book-the-alchemist',
+    title: 'The Alchemist',
+    author: 'Paulo Coelho',
+    filePath: 'builtin://the-alchemist.epub',
+    format: 'epub',
+    coverImage: null,
+    pageCount: 167,
+    chapterCount: 13,
+    fileSize: 1854200,
+    isFavorite: true,
+    addedDate: new Date().toISOString(),
+    lastReadDate: new Date().toISOString(),
+    percentage: 13.0,
+    position: '{"page": 22}',
+  },
+  {
     id: 'book-the-prince',
     title: 'The Prince',
     author: 'Nicolo Machiavelli',
@@ -344,6 +360,9 @@ export async function resolveBookContent(book: {
   if (fp.startsWith('builtin://')) {
     if (fp.includes('prince') || fmt === 'pdf') {
       return '/fixtures/sample-doc.pdf';
+    }
+    if (fp.includes('alchemist')) {
+      return '/fixtures/the-alchemist.epub';
     }
     if (fp.includes('comic') || fmt === 'cbz' || fmt === 'cbr') {
       return '/fixtures/sample-comic.cbz';

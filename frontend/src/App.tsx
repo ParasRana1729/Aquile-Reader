@@ -225,7 +225,9 @@ const MainShell: React.FC = () => {
 
   if (isReading) {
     titleBarText = `${cleanBookTitle || 'Book'} - Aquile Reader`;
-    showBack = true;
+    // In reading mode, ReaderView's FloatingToolbar provides the dedicated "Return to Library" back button.
+    // Suppressing showBack on TitleBar prevents double back arrows from being stacked together.
+    showBack = false;
   } else if (currentView !== 'home') {
     titleBarText = 'Aquile Reader';
     showBack = true;
@@ -261,85 +263,51 @@ const MainShell: React.FC = () => {
               />
 
               {/* View Router */}
-              <div className="flex-1 h-full overflow-hidden">
+              <main className="flex-1 h-full overflow-hidden relative">
                 {currentView === 'home' && (
                   <HomeView
-                    onOpenLibrary={() => setCurrentView('library')}
+                    key={libraryRefreshKey}
                     onOpenBook={handleOpenBook}
+                    onOpenLibrary={() => setCurrentView('library')}
                   />
                 )}
                 {currentView === 'library' && (
                   <LibraryView
+                    key={libraryRefreshKey}
                     onOpenBook={handleOpenBook}
-                    refreshTrigger={libraryRefreshKey}
                   />
                 )}
-                {currentView === 'annotations' && <AnnotationsView onOpenBook={handleOpenBook} />}
                 {currentView === 'catalogs' && <CatalogsView />}
-                {currentView === 'settings' && (
-                  <SettingsView onBackToHome={() => setCurrentView('home')} />
-                )}
+                {currentView === 'annotations' && <AnnotationsView />}
                 {currentView === 'insights' && <InsightsView />}
-              </div>
+                {currentView === 'settings' && <SettingsView />}
+              </main>
             </div>
           </AcrylicCanvas>
         )}
       </div>
 
-      {/* Global Windows Fluent Drag Overlay */}
+      {/* Global Drag-and-Drop Active Overlay matching Fluent UI */}
       {isDragging && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xl pointer-events-none transition-all duration-300">
-          <div
-            className="flex flex-col items-center justify-center gap-5 p-12 mx-8 max-w-lg w-full rounded-2xl border-2 border-dashed bg-[#1e1e1e]/90 shadow-2xl text-center"
-            style={{ borderColor: currentTheme.accent }}
-          >
-            <div
-              className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg transition-transform duration-300 scale-105"
-              style={{
-                background: `linear-gradient(135deg, ${currentTheme.accent}33, ${currentTheme.accent}88)`,
-              }}
-            >
-              <FolderDown size={42} className="text-white animate-bounce" />
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold text-white tracking-wide">
-                Drop books to add to your library (.epub, .pdf, .cbz)
-              </h3>
-              <p className="text-[13px] text-neutral-300">
-                Release to automatically extract metadata and add books to your library
-              </p>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              {['EPUB', 'PDF', 'CBZ', 'CBR'].map((fmt) => (
-                <span
-                  key={fmt}
-                  className="px-2.5 py-1 text-[11px] font-semibold tracking-wider rounded-md bg-white/10 text-neutral-200 border border-white/10"
-                >
-                  {fmt}
-                </span>
-              ))}
-            </div>
+        <div className="absolute inset-0 z-50 bg-[#0078d4]/20 backdrop-blur-md border-2 border-dashed border-[#0078d4] flex flex-col items-center justify-center pointer-events-none transition-all duration-200">
+          <div className="p-6 bg-[#1f1f1f]/90 rounded-2xl shadow-2xl border border-white/10 flex flex-col items-center gap-3">
+            <FolderDown className="w-12 h-12 text-[#0078d4] animate-bounce" />
+            <h3 className="text-base font-semibold text-white">Drop Books to Import</h3>
+            <p className="text-xs text-neutral-400">Supports EPUB, PDF, CBZ, and CBR files</p>
           </div>
         </div>
       )}
 
-      {/* Fluent Notification Banner */}
+      {/* Floating Status Notification Toast */}
       {notification && (
-        <div className="fixed top-12 right-6 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#202020]/95 backdrop-blur-xl border border-white/15 text-white shadow-2xl">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: currentTheme.accent }}
-          />
-          <CheckCircle2 size={16} className="text-emerald-400 flex-shrink-0" />
-          <span className="text-[13px] font-medium">{notification}</span>
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#2b2b2b] text-white border border-white/10 shadow-2xl text-xs font-medium animate-in slide-in-from-bottom-3 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{notification}</span>
           <button
-            type="button"
             onClick={() => setNotification(null)}
-            className="ml-2 text-neutral-400 hover:text-white p-0.5 rounded cursor-pointer"
+            className="ml-2 text-neutral-400 hover:text-white transition-colors"
           >
-            <X size={14} />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
@@ -347,12 +315,10 @@ const MainShell: React.FC = () => {
   );
 };
 
-export function App() {
+export default function App() {
   return (
     <ThemeProvider>
       <MainShell />
     </ThemeProvider>
   );
 }
-
-export default App;

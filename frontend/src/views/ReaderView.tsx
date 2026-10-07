@@ -213,7 +213,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       }
     } catch {}
   }
-  if (initialPageVal === 1 && book?.percentage && book.pageCount) {
+  // For PDF / Comic, estimate page from percentage if position is not recorded.
+  // For EPUB, do not guess arbitrary pages from placeholder page counts (avoiding random 4/7 pages).
+  if (initialPageVal === 1 && currentMode !== 'epub' && book?.percentage && book.pageCount && book.percentage > 0) {
     initialPageVal = Math.max(1, Math.round((book.percentage / 100) * book.pageCount));
   }
   const initialTotalPagesVal = book?.pageCount || (effectiveId.includes('prince') ? 140 : 200);
@@ -326,8 +328,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
       const activeMode = mode || currentModeRef.current;
 
-      // 2. Sanctum Mode
-      if (activeMode === 'sanctum') {
+      // 2. Sanctum Mode & EPUB Mode (both use paginated article containers)
+      if (activeMode === 'sanctum' || activeMode === 'epub') {
         const pageEl = document.querySelector(`article[data-page-number="${pageNum}"]`);
         if (pageEl) {
           const paragraphs = Array.from(pageEl.querySelectorAll('p'))
@@ -353,20 +355,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         }
       }
 
-      // 4. EPUB Mode
-      if (activeMode === 'epub') {
-        const iframe = document.querySelector('iframe');
-        if (iframe?.contentDocument?.body) {
-          const iframeSelection = iframe.contentDocument.getSelection()?.toString().trim();
-          if (iframeSelection) return iframeSelection;
-          const bodyText =
-            iframe.contentDocument.body.innerText?.trim() ||
-            iframe.contentDocument.body.textContent?.trim();
-          if (bodyText) return bodyText;
-        }
-      }
-
-      // 5. Generic viewport fallback
+      // 4. Generic viewport fallback
       const mainEl = document.querySelector('main');
       if (mainEl?.innerText?.trim()) {
         const text = mainEl.innerText.trim();
@@ -390,15 +379,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       if (cur < tot) {
         const nextPage = cur + 1;
 
-        if (mode === 'sanctum' || mode === 'pdf' || mode === 'comic') {
+        if (mode === 'sanctum' || mode === 'pdf' || mode === 'comic' || mode === 'epub') {
           if (jumpToPageRef.current) {
             jumpToPageRef.current(nextPage);
-          }
-          updateProgress(nextPage, tot);
-        } else if (mode === 'epub') {
-          if (epubNavigateRef.current) {
+          } else if (epubNavigateRef.current) {
             epubNavigateRef.current('next');
           }
+          updateProgress(nextPage, tot);
         }
 
         // Wait for page rendering to complete, then read the next page
@@ -504,8 +491,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       epubSearchRef.current(query).then((matches) => {
         setSearchResults(matches);
         setMatchIndex(0);
-        if (matches.length > 0 && matches[0].cfi && epubNavigateRef.current) {
-          epubNavigateRef.current(matches[0].cfi);
+        if (matches.length > 0) {
+          const first = matches[0];
+          if (first.page && jumpToPageRef.current) {
+            jumpToPageRef.current(first.page);
+          } else if (first.cfi && epubNavigateRef.current) {
+            epubNavigateRef.current(first.cfi);
+          }
         }
       });
       return 1;
@@ -601,7 +593,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         isReadingAloud={isReadingAloud}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-
         currentPage={currentPage}
         totalPages={totalPages}
       />
@@ -696,6 +687,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             {currentMode === 'epub' && (
               <EpubViewer
                 url={resolvedUrl}
+                bookTitle={effectiveTitle}
                 settings={settings}
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -703,6 +695,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                 onLoadTOC={(loadedToc) => setToc(loadedToc)}
                 onNavigateRef={epubNavigateRef}
                 onSearchRef={epubSearchRef}
+                onJumpToPageRef={jumpToPageRef}
+                onAddAnnotation={handleAddAnnotation}
+                onSpeakText={handleSpeakText}
               />
             )}
 

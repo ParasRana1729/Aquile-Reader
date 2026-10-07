@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { PageBoundaryBadge } from './PageBoundaryBadge';
 import { ReaderSettings, READER_THEMES } from '../../types/reader';
 
 // Configure worker
@@ -543,12 +542,6 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
                 )}
               </div>
 
-              {/* Continuous Page Boundary Badge */}
-              <PageBoundaryBadge
-                currentPage={p.pageNumber}
-                totalPages={pages.length}
-                theme={settings.theme}
-              />
             </div>
           );
         })}

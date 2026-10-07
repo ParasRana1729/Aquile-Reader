@@ -76,7 +76,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
     {
       pageNumber: 22,
       paragraphs: [
-        'DEDICATION. TO THE MAGNIFICENT LORENZO DI PIERO DE\u2019 MEDICI.',
+        'DEDICATION. TO THE MAGNIFICENT LORENZO DI PIERO DE’ MEDICI.',
         'Those who strive to obtain the good graces of a prince are accustomed to come before him with such things as they hold most dear, or in which they see him take most delight: whence one often sees them presented with horses, arms, cloth of gold, precious stones, and similar ornaments worthy of their greatness.',
         'Desiring then to present myself to your Magnificence with some token of my devotion towards you, I have found nothing amongst my possessions the which I value or esteem so much as the knowledge of the actions of great men, acquired by long experience in contemporary affairs, and a continual study of antiquity.',
       ],
@@ -104,7 +104,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
     {
       pageNumber: 25,
       paragraphs: [
-        'We have in Italy, for example, the Duke of Ferrara, who could not have withstood the attacks of the Venetians in \u201984, nor those of Pope Julius in \u201910, unless he had been long established in his dominions.',
+        'We have in Italy, for example, the Duke of Ferrara, who could not have withstood the attacks of the Venetians in ’84, nor those of Pope Julius in ’10, unless he had been long established in his dominions.',
         'For the hereditary prince has less cause and less necessity to offend; hence it happens that he will be more loved; and unless extraordinary vices cause him to be hated, it is reasonable to expect that his subjects will be naturally well disposed towards him; and in the antiquity and duration of his rule the memories and motives that make for change are lost, for one change always leaves the toothing for another.',
       ],
     },
@@ -121,14 +121,14 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
     {
       pageNumber: 27,
       paragraphs: [
-        'For these reasons Louis the Twelfth, King of France, quickly occupied Milan, and as quickly lost it; and to turn him out the first time it only needed Lodovico\u2019s own forces; because those who had opened the gates to him, finding themselves deceived in their hopes of future benefit, would not endure the ill-treatment of the new prince.',
+        'For these reasons Louis the Twelfth, King of France, quickly occupied Milan, and as quickly lost it; and to turn him out the first time it only needed Lodovico’s own forces; because those who had opened the gates to him, finding themselves deceived in their hopes of future benefit, would not endure the ill-treatment of the new prince.',
         'It is very true that, after acquiring rebellious provinces a second time, they are not so lightly lost afterwards, because the prince, with little reluctance, takes the opportunity of the rebellion to punish the delinquents, to clear out the suspects, and to strengthen himself in the weakest places.',
         'Thus to cause France to lose Milan the first time it was enough for the Duke Lodovico to raise insurrections on the borders; but to cause him to lose it a second time it was necessary to bring the whole world against him, and that his armies should be defeated and driven out of Italy; which followed from the causes above mentioned.',
       ],
     },
   ];
 
-  // Continuous vertical scroll & Intersection Observer
+  // Continuous vertical scroll & active page tracking
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -139,19 +139,36 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
       const scrollHeight = container.scrollHeight - container.clientHeight;
       const percentage = scrollHeight > 0 ? Math.round((scrollPos / scrollHeight) * 100) : 0;
 
-      // Find visible page
-      let closestPage = currentPage;
-      let minDistance = Infinity;
+      const containerRect = container.getBoundingClientRect();
+      const focalY = containerRect.top + Math.min(container.clientHeight * 0.35, 260);
+
+      let activePage = currentPage;
+      let foundFocal = false;
+      let maxVisibleHeight = -1;
+      let fallbackPage = currentPage;
+
       pageRefs.current.forEach((el, pNum) => {
+        if (!el) return;
         const rect = el.getBoundingClientRect();
-        const dist = Math.abs(rect.top - 120);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestPage = pNum;
+
+        // 1. Focal reading line check
+        if (rect.top <= focalY && rect.bottom > focalY) {
+          activePage = pNum;
+          foundFocal = true;
+        }
+
+        // 2. Visible overlap fallback
+        const visibleTop = Math.max(containerRect.top, rect.top);
+        const visibleBottom = Math.min(containerRect.bottom, rect.bottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        if (visibleHeight > maxVisibleHeight) {
+          maxVisibleHeight = visibleHeight;
+          fallbackPage = pNum;
         }
       });
 
-      onPageChange(closestPage, totalPages, percentage);
+      const resolvedPage = foundFocal ? activePage : fallbackPage;
+      onPageChange(resolvedPage, totalPages, percentage);
     };
 
     const container = containerRef.current;

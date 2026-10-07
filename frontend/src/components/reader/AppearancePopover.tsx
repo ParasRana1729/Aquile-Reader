@@ -48,6 +48,7 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
     { id: 'jetbrains', label: 'JetBrains Mono' },
     { id: 'bookerly', label: 'Bookerly' },
     { id: 'literata', label: 'Literata' },
+    { id: 'dyslexic', label: 'OpenDyslexic' },
     { id: 'system', label: 'System' },
   ];
 

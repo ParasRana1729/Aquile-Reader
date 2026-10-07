@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --font-serif: 'Merriweather', 'Gelasio', Georgia, 'Cambria', serif;
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-mono: 'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace;
+}
+
 :root {
   --accent-color: #d41b6c;
   --accent-hover: #eb227d;
@@ -15,9 +21,9 @@
   --overlay-duration: 180ms;
   --overlay-easing: ease-out;
 
-  /* Native Windows UI stack: Segoe UI Variable first, system fallbacks, no webfont dependency */
-  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  --font-serif-book: Georgia, 'Times New Roman', 'Cambria', 'Merriweather', serif;
+  /* Native Windows UI stack: Segoe UI Variable first, system fallbacks, bundled webfonts */
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-serif-book: 'Merriweather', 'Gelasio', Georgia, 'Cambria', serif;
   --font-mono: 'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace;
 
   /* UI type scale (native Aquile Reader: 11 numbers / 13 body / 20 section titles) */
