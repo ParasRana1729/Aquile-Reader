@@ -6,6 +6,7 @@ import {
   TOCItem,
   getFontFamilyCss,
 } from '../../types/reader';
+import { getPageTransition, subscribePageTransition } from '../../utils/readerPrefs';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface EpubSearchResult {
@@ -35,10 +36,17 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   onSearchRef,
 }) => {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const pageAnimRef = useRef<HTMLDivElement>(null);
+  const navDirectionRef = useRef<'next' | 'prev'>('next');
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pageTransitionRef = useRef(getPageTransition());
+
+  useEffect(() => subscribePageTransition((style) => {
+    pageTransitionRef.current = style;
+  }), []);
 
   const currentTheme = READER_THEMES[settings.theme] || READER_THEMES.night;
 
@@ -46,10 +54,12 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   const navigateTo = useCallback((target: string | number) => {
     if (!renditionRef.current) return;
     if (target === 'next') {
+      navDirectionRef.current = 'next';
       renditionRef.current.next();
       return;
     }
     if (target === 'prev') {
+      navDirectionRef.current = 'prev';
       renditionRef.current.prev();
       return;
     }
@@ -231,6 +241,20 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     // Relocated event
     rendition.on('relocated', (location: any) => {
       if (isCancelled || !location || !location.start) return;
+      const animHost = pageAnimRef.current;
+      if (animHost) {
+        const style = pageTransitionRef.current.toLowerCase();
+        if (style !== 'none') {
+          const cls = `epub-turn-${style}-${navDirectionRef.current}`;
+          animHost.classList.remove(
+            'epub-turn-slide-next', 'epub-turn-slide-prev',
+            'epub-turn-fade-next', 'epub-turn-fade-prev',
+            'epub-turn-flip-next', 'epub-turn-flip-prev'
+          );
+          void animHost.offsetWidth;
+          animHost.classList.add(cls);
+        }
+      }
       const cfi = location.start.cfi;
       const progress = book.locations.percentageFromCfi(cfi);
       const total = book.locations.length() || totalPages || 100;
@@ -274,8 +298,10 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        navDirectionRef.current = 'next';
         renditionRef.current?.next();
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        navDirectionRef.current = 'prev';
         renditionRef.current?.prev();
       }
     };
@@ -283,8 +309,14 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handlePrev = () => renditionRef.current?.prev();
-  const handleNext = () => renditionRef.current?.next();
+  const handlePrev = () => {
+    navDirectionRef.current = 'prev';
+    renditionRef.current?.prev();
+  };
+  const handleNext = () => {
+    navDirectionRef.current = 'next';
+    renditionRef.current?.next();
+  };
 
   if (error) {
     return (
@@ -320,7 +352,25 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
 
       {/* Main EPUB Reader Viewport */}
       <div className="flex-1 w-full h-full relative flex items-center justify-center">
-        <div ref={viewerRef} className="w-full h-full" />
+        <div ref={pageAnimRef} className="w-full h-full">
+          <div ref={viewerRef} className="w-full h-full" />
+        </div>
+
+        {/* Edge click zones for page turn (native behavior) */}
+        <button
+          onClick={handlePrev}
+          aria-label="Previous page"
+          title="Previous page (←)"
+          className="absolute left-0 top-0 bottom-0 w-16 z-10 cursor-w-resize focus:outline-none"
+          style={{ background: 'transparent', border: 'none' }}
+        />
+        <button
+          onClick={handleNext}
+          aria-label="Next page"
+          title="Next page (→)"
+          className="absolute right-0 top-0 bottom-0 w-16 z-10 cursor-e-resize focus:outline-none"
+          style={{ background: 'transparent', border: 'none' }}
+        />
 
         {/* Floating Side Prev/Next Arrows */}
         <button

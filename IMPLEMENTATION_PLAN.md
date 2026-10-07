@@ -319,3 +319,56 @@ This initial index does not replace the detailed two-way matrix. Add every newly
 **WP-06, WP-07, WP-08, WP-09 & G2 status (2026-10-03):** Cleared. Application package built under `src/aquile/`, CLI runner `run_aquile.py`, desktop integration `data/org.antigravity.AquileReader.desktop`, and 13 unit/integration tests passing. Verified in [docs/validation/G2_PREVIEW_EVIDENCE.md](docs/validation/G2_PREVIEW_EVIDENCE.md).
 
 **Application validation status:** Gate G2 internal reading preview passed; broad release qualification `AT-01`–`AT-13` scheduled for G4 upon completing remaining G3 work packages.
+
+## 13. Video-grounded parity & polish backlog
+
+Source: user-supplied native Windows capture `windows-aquile-reader-50MB.mp4` (55s, reviewed 2026-10-07; 55 reference
+frames extracted at 1fps, 1280px wide). Native facts frozen from the footage: dark theme with transparency ON over a
+blurred wallpaper; Dark Side (`#d41b6c`-family) accent; Segoe UI for all chrome, serif reserved for book content and the
+large italic `23 of 239` page dividers; book under test is *The Prince* EPUB at 239 pages.
+
+This section is a polish backlog against that footage. It does not move B0, gates, or requirement IDs; each item maps
+to the existing WP/AT coverage noted beside it. Status values: `not started` / `in progress` / `complete`.
+
+### Phase 0 — Reference freeze (complete)
+
+- [x] Extract 1fps reference frames covering home, paged reader, annotations empty state + filter bar, all seven
+      settings pages, theme switching, insights, about page, return-to-home.
+
+### Phase 1 — Reader feel (in progress; 1.1–1.2 complete 2026-10-07)
+
+| # | Gap vs footage | Work | Status |
+| --- | --- | --- | --- |
+| 1.1 | *Page transition style* setting (`None/Slide/Fade/Flip`) is stored by `SettingsView.tsx` but never read anywhere — dead setting | Added `utils/readerPrefs.ts` (localStorage + live-update event); `EpubViewer` plays direction-aware CSS turn animations; `Flip` as rotateY variant; honors `prefers-reduced-motion` | complete |
+| 1.2 | Native turns pages on edge tap/click; ours only has hover-reveal arrow buttons | Added invisible left/right edge click zones (`cursor-w/e-resize`, arrow-key titles) in `EpubViewer`; arrows kept; keyboard handler tracks turn direction | complete |
+| 1.3 | Paged rhythm: full-viewport page, large serif `N of M` divider, running head (title left, publisher right), generous top margin | Audit `EpubViewer` rendition + `PageBoundaryBadge` against frames f_006/f_011; adjust divider scale and running-head placement | not started |
+| 1.4 | Keyboard arrows / single-key page turn | Verify global handler scope (no hijack of inputs); add visible shortcut hints in toolbar tooltips | not started |
+
+### Phase 2 — Home, library, annotations
+
+| # | Gap vs footage | Work | Status |
+| --- | --- | --- | --- |
+| 2.1 | Home hero cluster (hero + 2 stacked covers), `Open Library ›` / `See more ›`, glowing-star favorites empty state, 4-cover Recently Added row | Diff `HomeView.tsx` spacing against frames f_001/f_016/f_055 | not started |
+| 2.2 | Annotations filter bar: two dropdowns + **"Show only favorites" checkbox** + pink-lines `No annotations available` empty state (frame f_021) | Verify favorites checkbox exists in `AnnotationsView.tsx`; add if missing; match empty-state art | not started |
+| 2.3 | Library grid density, progress badges, favorite star, empty states | Diff `LibraryView.tsx` against footage; align filter/sort bar | not started |
+
+### Phase 3 — Settings depth
+
+| # | Gap vs footage | Work | Status |
+| --- | --- | --- | --- |
+| 3.1 | Reader settings screen shows exactly: ReadAloud auto-scroll, Search engine, Dictionary, Page transition + Experimental (frame f_026) | Remove or relocate any surplus toggles in `SettingsView.tsx` reader section | not started |
+| 3.2 | Sync Folders: `Sync now` + `Add sync folder` must do real work | Wire Tauri folder-watch import behind the existing buttons | not started |
+| 3.3 | Personalization: swatch grid with selected-ring + focus states (frames f_036/f_041) | Verify selection ring, hover, keyboard focus in `SettingsView.tsx` | not started |
+| 3.4 | Insights: 5 stat cards, streak cards, monthly chart, year/book dropdowns, `–` for empty wpm (frame f_046) | Verify `InsightsView.tsx` formats and dropdowns | not started |
+| 3.5 | About: centered icon, version, copyright, action-button row (frame f_051) | Verify `SettingsView.tsx` about section links are live, not dead | not started |
+
+### Phase 4 — Motion & acrylic
+
+- Page-turn and view transitions 150–250ms ease-out, `prefers-reduced-motion` respected (extends 1.1).
+- Transparency ON by default like footage; identical blur/saturation on drawers, dialogs, search overlay.
+- One systematic pass: scrollbars, hover states, focus rings, tooltips with shortcut hints.
+
+### Phase 5 — Prove it
+
+- Per-screen side-by-side checklist (native frame vs ours at 1280px), design/QA sign-off per screen.
+- `npm run build` + `cargo test` green per phase; commit per phase.

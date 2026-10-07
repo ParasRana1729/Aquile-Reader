@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { COLOR_THEMES, ThemeId } from '../types/theme';
+import { getPageTransition, setPageTransition, PageTransitionStyle } from '../utils/readerPrefs';
 import { InsightsView } from './InsightsView';
 import {
   BookOpen,
@@ -90,8 +91,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [dictionary, setDictionary] = useState(() => {
     return localStorage.getItem('aquile_setting_dictionary') || 'Default dictionary [en-US]';
   });
-  const [pageTransition, setPageTransition] = useState(() => {
-    return localStorage.getItem('aquile_setting_page_transition') || 'None';
+  const [pageTransition, setPageTransitionState] = useState<PageTransitionStyle>(() => {
+    return getPageTransition();
   });
 
   // Experimental Reader Toggles
@@ -493,8 +494,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <select
                     value={pageTransition}
                     onChange={(e) => {
-                      setPageTransition(e.target.value);
-                      updateSetting('aquile_setting_page_transition', e.target.value);
+                      const next = e.target.value as PageTransitionStyle;
+                      setPageTransitionState(next);
+                      setPageTransition(next);
                     }}
                     className="w-full appearance-none h-9 bg-neutral-800/80 border border-white/10 rounded-md pl-3 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
                   >
