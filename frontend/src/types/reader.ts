@@ -91,43 +91,43 @@ export const FONT_FAMILIES: Record<FontFamilyId, FontFamilyConfig> = {
   inter: {
     id: 'inter',
     name: 'Inter',
-    cssFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    cssFamily: "'Segoe UI Variable Text', 'Segoe UI', 'Inter', system-ui, sans-serif",
     description: 'Clean modern sans',
   },
   merriweather: {
     id: 'merriweather',
     name: 'Merriweather',
-    cssFamily: "'Merriweather', Georgia, serif",
+    cssFamily: "Georgia, 'Cambria', 'Merriweather', 'Times New Roman', serif",
     description: 'Designed for screens',
   },
   georgia: {
     id: 'georgia',
     name: 'Georgia',
-    cssFamily: "'Georgia', 'Times New Roman', serif",
+    cssFamily: "Georgia, 'Cambria', 'Times New Roman', serif",
     description: 'Classic editorial serif',
   },
   jetbrains: {
     id: 'jetbrains',
     name: 'JetBrains Mono',
-    cssFamily: "'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace",
+    cssFamily: "'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace",
     description: 'Developer monospace',
   },
   bookerly: {
     id: 'bookerly',
     name: 'Bookerly',
-    cssFamily: "'Bookerly', 'Merriweather', Georgia, serif",
+    cssFamily: "Georgia, 'Cambria', 'Bookerly', 'Times New Roman', serif",
     description: 'Warm literary serif',
   },
   literata: {
     id: 'literata',
     name: 'Literata',
-    cssFamily: "'Literata', Georgia, serif",
+    cssFamily: "Georgia, 'Cambria', 'Literata', 'Times New Roman', serif",
     description: 'Digital book serif',
   },
   system: {
     id: 'system',
     name: 'System',
-    cssFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    cssFamily: "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif",
     description: 'Native OS font',
   },
   dyslexic: {
@@ -140,19 +140,19 @@ export const FONT_FAMILIES: Record<FontFamilyId, FontFamilyConfig> = {
   serif: {
     id: 'serif',
     name: 'Serif',
-    cssFamily: "'Merriweather', 'Georgia', serif",
+    cssFamily: "Georgia, 'Cambria', 'Merriweather', 'Times New Roman', serif",
     description: 'Merriweather / Georgia',
   },
   sans: {
     id: 'sans',
     name: 'Sans',
-    cssFamily: "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+    cssFamily: "'Segoe UI Variable Text', 'Segoe UI', 'Inter', system-ui, sans-serif",
     description: 'Segoe UI / Inter',
   },
   mono: {
     id: 'mono',
     name: 'Monospace',
-    cssFamily: "'JetBrains Mono', 'Consolas', monospace",
+    cssFamily: "'Cascadia Mono', Consolas, 'JetBrains Mono', monospace",
     description: 'JetBrains / Consolas',
   },
 };
@@ -177,14 +177,14 @@ export interface ReaderSettings extends ReaderAppearance {
 
 export const DEFAULT_READER_APPEARANCE: ReaderAppearance = {
   theme: 'night',
-  fontSize: 18,
-  lineSpacing: 1.6,
+  fontSize: 19,
+  lineSpacing: 1.7,
   fontFamily: 'merriweather',
   spreadMode: 'single',
   letterSpacing: 0,
   paragraphSpacing: 16,
   textAlign: 'justify',
-  margin: 36,
+  margin: 48,
   customFont: '',
 };
 
@@ -196,9 +196,9 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 
 export function getFontFamilyCss(fontFamily?: string, customFont?: string): string {
   if (customFont && customFont.trim().length > 0) {
-    return `"${customFont.trim()}", system-ui, -apple-system, sans-serif`;
+    return `"${customFont.trim()}", Georgia, 'Segoe UI', system-ui, serif`;
   }
-  if (!fontFamily) return FONT_FAMILIES.merriweather.cssFamily;
+  if (!fontFamily) return "Georgia, 'Cambria', 'Times New Roman', serif";
   const match = FONT_FAMILIES[fontFamily as FontFamilyId];
   if (match) return match.cssFamily;
   return fontFamily;

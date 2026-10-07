@@ -318,7 +318,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   return (
     <div className="flex h-full w-full select-none overflow-hidden">
       {/* Settings Sub-Navigation Sidebar (matching win_024–win_044) */}
-      <nav className="w-60 h-full flex flex-col border-r border-white/5 bg-black/25 backdrop-blur-md px-3 py-4 flex-shrink-0">
+      <nav className="w-[264px] h-full flex flex-col border-r border-white/5 bg-black/25 backdrop-blur-md px-3 py-4 flex-shrink-0 antialiased">
         <div className="flex items-center gap-3 px-3 mb-6">
           <span className="text-[18px] font-semibold tracking-tight text-white">
             Settings
@@ -332,7 +332,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id as SettingsCategory)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-normal transition-all relative ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-normal transition-all relative ${
                   isActive
                     ? 'bg-white/10 text-white font-medium'
                     : 'text-neutral-300 hover:bg-white/5 hover:text-white'
@@ -362,7 +362,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id as SettingsCategory)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-normal transition-all relative ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-normal transition-all relative ${
                   isActive
                     ? 'bg-white/10 text-white font-medium'
                     : 'text-neutral-300 hover:bg-white/5 hover:text-white'
@@ -391,7 +391,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* ============================================================ */}
         {activeCategory === 'reader' && (
           <div className="space-y-6 max-w-3xl pb-16">
-            <h1 className="text-[22px] font-semibold text-white tracking-tight">
+            <h1 className="text-[20px] font-semibold text-white tracking-tight">
               Reader Settings
             </h1>
 
@@ -451,7 +451,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       setSearchEngine(e.target.value);
                       updateSetting('aquile_setting_search_engine', e.target.value);
                     }}
-                    className="w-full appearance-none bg-neutral-800/80 border border-white/10 rounded px-3 py-1.5 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
+                    className="w-full appearance-none h-9 bg-neutral-800/80 border border-white/10 rounded-md pl-3 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
                   >
                     <option value="Bing">Bing</option>
                     <option value="Google">Google</option>
@@ -473,7 +473,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       setDictionary(e.target.value);
                       updateSetting('aquile_setting_dictionary', e.target.value);
                     }}
-                    className="w-full appearance-none bg-neutral-800/80 border border-white/10 rounded px-3 py-1.5 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
+                    className="w-full appearance-none h-9 bg-neutral-800/80 border border-white/10 rounded-md pl-3 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
                   >
                     <option value="Default dictionary [en-US]">Default dictionary [en-US]</option>
                     <option value="Oxford English">Oxford English</option>
@@ -496,7 +496,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       setPageTransition(e.target.value);
                       updateSetting('aquile_setting_page_transition', e.target.value);
                     }}
-                    className="w-full appearance-none bg-neutral-800/80 border border-white/10 rounded px-3 py-1.5 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
+                    className="w-full appearance-none h-9 bg-neutral-800/80 border border-white/10 rounded-md pl-3 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
                   >
                     <option value="None">None</option>
                     <option value="Slide">Slide</option>
@@ -575,7 +575,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* ============================================================ */}
         {activeCategory === 'general' && (
           <div className="space-y-6 max-w-3xl">
-            <h1 className="text-[22px] font-semibold text-white tracking-tight">
+            <h1 className="text-[20px] font-semibold text-white tracking-tight">
               General Settings
             </h1>
 
@@ -631,7 +631,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       setDisplayLanguage(e.target.value);
                       updateSetting('aquile_setting_display_lang', e.target.value);
                     }}
-                    className="w-full appearance-none bg-neutral-800/80 border border-white/10 rounded px-3 py-1.5 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
+                    className="w-full appearance-none h-9 bg-neutral-800/80 border border-white/10 rounded-md pl-3 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer"
                   >
                     <option value="English">English</option>
                     <option value="Español">Español</option>
@@ -664,7 +664,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* ============================================================ */}
         {activeCategory === 'sync-folders' && (
           <div className="space-y-6 max-w-3xl">
-            <h1 className="text-[22px] font-semibold text-white tracking-tight">
+            <h1 className="text-[20px] font-semibold text-white tracking-tight">
               Sync Folders
             </h1>
 
@@ -772,7 +772,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* ============================================================ */}
         {activeCategory === 'personalization' && (
           <div className="space-y-8 max-w-4xl pb-16">
-            <h1 className="text-[22px] font-semibold text-white tracking-tight">
+            <h1 className="text-[20px] font-semibold text-white tracking-tight">
               Personalization
             </h1>
 
@@ -888,7 +888,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {activeCategory === 'backup' && (
           <div className="space-y-6 max-w-3xl pb-16">
             <div className="flex items-baseline gap-2">
-              <h1 className="text-[22px] font-semibold text-white tracking-tight">
+              <h1 className="text-[20px] font-semibold text-white tracking-tight">
                 Backup & Restore
               </h1>
               <span className="text-[12px] text-neutral-400 font-normal">
@@ -1097,7 +1097,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {activeCategory === 'cloud-sync' && (
           <div className="space-y-6 max-w-3xl pb-16">
             <div className="flex items-baseline gap-2">
-              <h1 className="text-[22px] font-semibold text-white tracking-tight">
+              <h1 className="text-[20px] font-semibold text-white tracking-tight">
                 Cloud sync
               </h1>
               <span className="text-[12px] text-neutral-400 font-normal">
@@ -1261,7 +1261,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* ============================================================ */}
         {activeCategory === 'faq' && (
           <div className="space-y-6 max-w-3xl pb-16">
-            <h1 className="text-[22px] font-semibold text-white tracking-tight">
+            <h1 className="text-[20px] font-semibold text-white tracking-tight">
               Frequently Asked Questions
             </h1>
 
@@ -1334,7 +1334,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* ============================================================ */}
         {activeCategory === 'changelog' && (
           <div className="space-y-6 max-w-3xl pb-16">
-            <h1 className="text-[22px] font-semibold text-white tracking-tight">
+            <h1 className="text-[20px] font-semibold text-white tracking-tight">
               Change log
             </h1>
 

@@ -88,7 +88,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   };
 
   const buttonClass = (isActive = false) => `
-    p-1.5 rounded transition-all duration-150 flex items-center justify-center
+    p-2 rounded-lg transition-all duration-150 flex items-center justify-center
     ${
       isActive
         ? 'bg-primary/25 text-white ring-1 ring-primary/40'
@@ -108,9 +108,9 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         color: currentTheme.text || '#ffffff',
       }}
     >
-      <div className="h-11 w-full flex items-center justify-between px-3 md:px-5">
+      <div className="h-12 w-full flex items-center justify-between px-3 md:px-5">
         {/* Left Toolbar Controls (TOC, Notes, Bookmarks, Engine) */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {onBack && (
             <button
               type="button"
@@ -156,14 +156,14 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         </div>
 
         {/* Center Quick Stats (Matching Windows native reader clean layout) */}
-        <div className="hidden md:flex items-center gap-3 text-xs opacity-80 font-sans select-none antialiased">
+        <div className="hidden md:flex items-center gap-3 text-[13px] font-sans select-none antialiased" style={{ color: currentTheme.muted }}>
           {cleanBookTitle && (
-            <span className="truncate max-w-[260px] font-normal opacity-70 hidden xl:inline" title={cleanBookTitle}>
+            <span className="truncate max-w-[320px] font-normal hidden xl:inline" title={cleanBookTitle}>
               {cleanBookTitle}
             </span>
           )}
           {totalPages > 0 && (
-            <span className="text-[12px] opacity-75 font-normal">
+            <span className="tabular-nums font-normal">
               {currentPage} of {totalPages}
             </span>
           )}
@@ -171,7 +171,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         </div>
 
         {/* Right Toolbar Controls (Search, TTS, Zoom, Spread, Appearance, Fullscreen) */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {/* Search */}
           <button
             type="button"

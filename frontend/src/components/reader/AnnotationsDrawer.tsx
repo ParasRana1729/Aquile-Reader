@@ -53,12 +53,12 @@ export const AnnotationsDrawer: React.FC<AnnotationsDrawerProps> = ({
       aria-label="Annotations and notes"
     >
       <div
-        className="h-11 shrink-0 flex items-center justify-between pl-4 pr-2"
+        className="h-12 shrink-0 flex items-center justify-between pl-4 pr-2"
         style={{ borderBottom: `1px solid ${currentTheme.border}` }}
       >
         <div className="flex items-center gap-2 min-w-0">
           <NotebookPen size={14} style={{ color: currentTheme.muted }} />
-          <span className="text-[12px] font-semibold tracking-wide truncate">Notes</span>
+          <span className="text-[13px] font-semibold tracking-wide truncate">Notes</span>
           <span
             className="text-[11px] px-1.5 py-px rounded-full font-mono tabular-nums"
             style={{ backgroundColor: currentTheme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: currentTheme.muted }}

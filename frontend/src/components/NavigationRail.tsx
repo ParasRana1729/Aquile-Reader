@@ -34,13 +34,15 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
         key={item.id}
         onClick={() => onSelectView(item.id)}
         title={item.label}
-        className="relative group w-10 h-10 my-1 rounded-md flex items-center justify-center transition-all duration-150 focus:outline-none"
+        aria-label={item.label}
+        aria-current={isActive ? 'page' : undefined}
+        className="relative group w-10 h-10 my-0.5 rounded-lg flex items-center justify-center transition-all duration-150 focus:outline-none"
         style={
           isActive
             ? {
                 backgroundColor: currentTheme.accent,
                 color: '#ffffff',
-                boxShadow: `0 2px 10px ${currentTheme.accentGlow}`,
+                boxShadow: `0 4px 14px ${currentTheme.accentGlow}`,
               }
             : {}
         }
@@ -49,7 +51,7 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
           className={`flex items-center justify-center transition-colors duration-150 ${
             isActive
               ? 'text-white'
-              : 'text-neutral-400 group-hover:text-white group-hover:bg-white/10 w-full h-full rounded-md flex items-center justify-center'
+              : 'text-[#a0a0a0] group-hover:text-white group-hover:bg-white/10 w-full h-full rounded-lg flex items-center justify-center'
           }`}
         >
           {item.icon}
@@ -60,19 +62,19 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
 
   return (
     <aside
-      className="w-[52px] h-full flex flex-col items-center justify-between py-2 border-r border-white/5 select-none z-30 transition-colors"
+      className="w-[60px] h-full flex flex-col items-center justify-between py-3 border-r border-white/5 select-none z-30 transition-colors"
       style={{
         backgroundColor: 'rgba(20, 20, 22, 0.75)',
         backdropFilter: 'blur(20px)',
       }}
     >
       {/* Top Nav Items */}
-      <div className="flex flex-col items-center w-full px-1">
+      <div className="flex flex-col items-center gap-1 w-full px-1.5">
         {navItems.map(renderButton)}
       </div>
 
       {/* Bottom Nav Items */}
-      <div className="flex flex-col items-center w-full px-1">
+      <div className="flex flex-col items-center gap-1 w-full px-1.5">
         {bottomItems.map(renderButton)}
       </div>
     </aside>

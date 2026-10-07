@@ -118,14 +118,18 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
         'line-height': `${settings.lineSpacing} !important`,
         'letter-spacing': `${letterSpacing} !important`,
         'text-align': `${align} !important`,
+        '-webkit-font-smoothing': 'antialiased !important',
+        'text-rendering': 'optimizeLegibility !important',
+        overflowWrap: 'break-word !important',
         margin: '0 auto !important',
-        padding: `0 ${marginPx}px !important`,
+        padding: `24px ${marginPx}px 48px !important`,
       },
       p: {
         'line-height': `${settings.lineSpacing} !important`,
         'letter-spacing': `${letterSpacing} !important`,
         'text-align': `${align} !important`,
         'margin-bottom': `${paraSpacing} !important`,
+        hyphens: 'auto !important',
         color: `${currentTheme.text} !important`,
       },
       'h1, h2, h3, h4, h5, h6': {
@@ -308,8 +312,8 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
       {loading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center space-y-3 bg-inherit">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-neutral-400 font-sans tracking-wide">
-            Unpacking EPUB Sanctum...
+          <span className="text-[13px] text-neutral-400 font-sans tracking-wide">
+            Opening book…
           </span>
         </div>
       )}

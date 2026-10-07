@@ -167,8 +167,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   // Compute standard page CSS dimensions
   const computedPageWidth = useMemo(() => {
     const availableWidth = isDual
-      ? (containerWidth - 80) / 2
-      : Math.min(containerWidth - 48, 860);
+      ? (containerWidth - 96) / 2
+      : Math.min(containerWidth - 64, 816);
     return Math.max(280, Math.floor(availableWidth * settings.zoom));
   }, [containerWidth, isDual, settings.zoom]);
 
@@ -460,8 +460,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         }}
       >
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs text-neutral-400 font-sans tracking-wide">
-          Rendering PDF Sanctum...
+        <span className="text-[13px] text-neutral-400 font-sans tracking-wide">
+          Opening book…
         </span>
       </div>
     );
@@ -493,10 +493,10 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     >
       {/* Two-page spread mode vs single column */}
       <div
-        className={`mx-auto py-12 ${
+        className={`mx-auto py-8 ${
           isDual
-            ? 'grid grid-cols-2 gap-6 max-w-7xl px-6'
-            : 'flex flex-col items-center max-w-4xl px-4'
+            ? 'grid grid-cols-2 gap-8 max-w-7xl px-8'
+            : 'flex flex-col items-center max-w-[880px] px-6'
         }`}
       >
         {pages.map((p) => {
@@ -513,21 +513,21 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
                 else pageRefs.current.delete(p.pageNumber);
               }}
               data-page-number={p.pageNumber}
-              className="w-full flex flex-col items-center my-4"
+              className="w-full flex flex-col items-center my-6"
               style={{
                 minHeight: `${pageHeight}px`,
               }}
             >
               {/* Page Canvas Container with fixed placeholder aspect ratio */}
               <div
-                className="relative shadow-2xl overflow-hidden"
+                className="relative overflow-hidden ring-1 ring-black/30"
                 style={{
                   width: `${computedPageWidth}px`,
                   minHeight: `${pageHeight}px`,
-                  backgroundColor: currentTheme.pageBg,
+                  backgroundColor: '#ffffff',
                   boxShadow: currentTheme.isDark
-                    ? '0 10px 30px rgba(0, 0, 0, 0.5)'
-                    : '0 10px 25px rgba(0, 0, 0, 0.08)',
+                    ? '0 12px 36px rgba(0, 0, 0, 0.55)'
+                    : '0 12px 32px rgba(0, 0, 0, 0.12)',
                 }}
               >
                 <canvas className="block" />
@@ -535,8 +535,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
 
                 {/* Lightweight placeholder indicator when page is not yet rendered */}
                 {!isInBuffer && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30 select-none pointer-events-none">
-                    <span className="text-xs font-serif italic text-neutral-500">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center select-none pointer-events-none bg-[#f4f4f4] animate-pulse">
+                    <span className="text-[13px] italic font-serif text-neutral-400">
                       Page {p.pageNumber}
                     </span>
                   </div>

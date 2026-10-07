@@ -252,8 +252,8 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
 
       {/* Main Reading Canvas Container */}
       <div
-        className={`mx-auto py-16 ${
-          isDual ? 'max-w-7xl' : 'max-w-4xl'
+        className={`mx-auto py-12 ${
+          isDual ? 'max-w-7xl' : 'max-w-[40rem]'
         }`}
         style={{
           paddingLeft: `${marginPx}px`,
@@ -268,7 +268,7 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
               else pageRefs.current.delete(page.pageNumber);
             }}
             data-page-number={page.pageNumber}
-            className="w-full my-6"
+            className="w-full my-8"
             style={{
               fontFamily: fontCss,
               fontSize: `${settings.fontSize}px`,
@@ -278,9 +278,9 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
             }}
           >
             {/* Document Header (matching win_004 & win_005) */}
-            <div className="flex items-center justify-between pb-6 select-none opacity-50 text-xs italic tracking-wider">
-              <span>{bookTitle}</span>
-              <span className="font-sans font-medium text-[11px] not-italic">
+            <div className="flex items-center justify-between pb-6 select-none text-[12px] italic tracking-wider" style={{ color: currentTheme.muted }}>
+              <span className="truncate">{bookTitle}</span>
+              <span className="font-sans font-medium text-[11px] not-italic shrink-0 ml-4">
                 Planet PDF
               </span>
             </div>
@@ -288,11 +288,12 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
             {/* Chapter Title if present (matching win_004: CHAPTER I) */}
             {page.chapterTitle && (
               <h2
-                className="text-center font-bold tracking-widest uppercase my-8 pt-4 pb-3 border-b transition-colors duration-200"
+                className="text-center font-bold uppercase my-8 pt-4 pb-4 border-b transition-colors duration-200"
                 style={{
-                  fontSize: `${Math.round(settings.fontSize * 1.35)}px`,
+                  fontSize: `${Math.round(settings.fontSize * 1.22)}px`,
+                  lineHeight: 1.4,
                   borderColor: currentTheme.border,
-                  letterSpacing: letterSpacingPx,
+                  letterSpacing: '0.08em',
                 }}
               >
                 {page.chapterTitle}
@@ -316,6 +317,10 @@ export const ReadingSanctum: React.FC<ReadingSanctumProps> = ({
                     letterSpacing: letterSpacingPx,
                     marginBottom: paragraphSpacingPx,
                     textAlign: textAlign,
+                    hyphens: 'auto',
+                    overflowWrap: 'break-word',
+                    textWrap: 'pretty',
+                    textRendering: 'optimizeLegibility',
                   }}
                 >
                   {para}

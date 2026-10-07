@@ -7,14 +7,38 @@
   --titlebar-bg: #680036;
   --titlebar-text: #ffffff;
   --acrylic-opacity: 0.85;
-  --font-sans: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+
+  /* Native Windows UI stack: Segoe UI Variable first, system fallbacks, no webfont dependency */
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-serif-book: Georgia, 'Times New Roman', 'Cambria', 'Merriweather', serif;
+  --font-mono: 'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace;
+
+  /* UI type scale (native Aquile Reader: 11 numbers / 13 body / 20 section titles) */
+  --text-numeric: 11px;
+  --text-body: 13px;
+  --text-body-large: 14px;
+  --text-title: 20px;
+}
+
+html {
+  font-size: 16px;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scope non-selectable chrome; reading surfaces opt back in via .select-text */
+html, body, button, nav, aside, header {
   -webkit-user-select: none;
   user-select: none;
-  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea, [contenteditable="true"], .select-text, .select-text * {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 body {
@@ -24,14 +48,38 @@ body {
   background-color: #1f1f1f;
   color: #eaeaea;
   font-family: var(--font-sans);
+  font-size: var(--text-body-large);
+  line-height: 1.5;
+  letter-spacing: 0.002em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'rclt' 0, 'tnum' 1;
 }
 
-/* Custom Fluent scrollbars */
+h1, h2, h3 {
+  text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+
+p {
+  overflow-wrap: break-word;
+}
+
+::selection {
+  background: rgba(212, 27, 108, 0.45);
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Fluent scrollbars: visible but quiet, sized for desktop pointer */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -39,12 +87,25 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+
+/* PDF / EPUB text layers: crisp selection matching the app accent */
+.textLayer ::selection {
+  background: rgba(0, 120, 212, 0.28);
+}
+
+.textLayer {
+  text-rendering: optimizeLegibility;
 }
 
 /* Form controls and inputs */
@@ -78,4 +139,11 @@ input[type='range']::-moz-range-thumb {
   border: 2px solid var(--accent-color);
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

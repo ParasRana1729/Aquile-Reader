@@ -82,12 +82,12 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
     >
       {/* Header — same density as the reader toolbar */}
       <div
-        className="h-11 shrink-0 flex items-center justify-between pl-4 pr-2"
+        className="h-12 shrink-0 flex items-center justify-between pl-4 pr-2"
         style={{ borderBottom: `1px solid ${currentTheme.border}` }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <List size={14} style={{ color: currentTheme.muted }} />
-          <span className="text-[12px] font-semibold tracking-wide truncate">Contents</span>
+          <List size={15} style={{ color: currentTheme.muted }} />
+          <span className="text-[13px] font-semibold tracking-wide truncate">Contents</span>
           <span
             className="text-[11px] px-1.5 py-px rounded-full font-mono tabular-nums"
             style={{ backgroundColor: currentTheme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: currentTheme.muted }}
@@ -128,7 +128,7 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter chapters…"
-              className="flex-1 bg-transparent text-[12px] focus:outline-none min-w-0"
+              className="flex-1 bg-transparent text-[13px] focus:outline-none min-w-0"
               style={{ color: currentTheme.text }}
             />
             {filter && (
@@ -147,7 +147,7 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
       {/* Chapters */}
       <div ref={listRef} className="flex-1 overflow-y-auto py-1.5 px-1.5 min-h-0">
         {visible.length === 0 ? (
-          <div className="px-4 py-10 text-center text-[12px]" style={{ color: currentTheme.muted }}>
+          <div className="px-4 py-10 text-center text-[13px]" style={{ color: currentTheme.muted }}>
             {flat.length === 0
               ? 'No chapters or landmarks in this document.'
               : `No chapters match “${filter.trim()}”.`}
@@ -189,16 +189,17 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
               >
                 <span
                   className="font-mono tabular-nums shrink-0"
-                  style={{ fontSize: 10, width: 22, color: currentTheme.muted }}
+                  style={{ fontSize: 11, width: 24, color: currentTheme.muted }}
                 >
                   {String(item.index).padStart(2, '0')}
                 </span>
                 <span
                   className="flex-1 truncate"
                   style={{
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: isActive ? currentTheme.text : currentTheme.isDark ? '#cfcfcf' : '#3a3a3a',
                     fontWeight: isActive ? 600 : 400,
+                    lineHeight: 1.45,
                   }}
                 >
                   {item.label}
@@ -206,7 +207,7 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
                 {item.page !== undefined && (
                   <span
                     className="font-mono tabular-nums shrink-0"
-                    style={{ fontSize: 10.5, color: currentTheme.muted }}
+                    style={{ fontSize: 11, color: currentTheme.muted }}
                   >
                     {item.page}
                   </span>
@@ -228,7 +229,7 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
           </div>
           <div
             className="flex items-center justify-between font-mono tabular-nums"
-            style={{ fontSize: 10.5, color: currentTheme.muted }}
+            style={{ fontSize: 11, color: currentTheme.muted }}
           >
             <span>
               p. {currentPage} / {totalPages}

@@ -20,12 +20,12 @@ export const PageBoundaryBadge: React.FC<PageBoundaryBadgeProps> = ({
 
   return (
     <div
-      className={`flex items-center justify-center my-8 py-4 w-full select-none ${className}`}
+      className={`flex items-center justify-center my-6 w-full select-none ${className}`}
       data-page-badge={currentPage}
     >
       {/* Left Hairline Rule */}
       <div
-        className="h-[1px] flex-1 max-w-[120px] transition-colors duration-200"
+        className="h-[1px] flex-1 max-w-[140px] transition-colors duration-200"
         style={{ backgroundColor: currentTheme.hairline }}
       />
 
@@ -45,7 +45,7 @@ export const PageBoundaryBadge: React.FC<PageBoundaryBadgeProps> = ({
 
       {/* Right Hairline Rule */}
       <div
-        className="h-[1px] flex-1 max-w-[120px] transition-colors duration-200"
+        className="h-[1px] flex-1 max-w-[140px] transition-colors duration-200"
         style={{ backgroundColor: currentTheme.hairline }}
       />
     </div>

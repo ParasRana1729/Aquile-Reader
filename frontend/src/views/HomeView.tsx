@@ -83,7 +83,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
   const recentlyAdded = books.slice(0, 4);
 
   return (
-    <div className="flex flex-col h-full w-full select-none overflow-y-auto px-10 py-5 text-white">
+    <div className="flex flex-col h-full w-full select-none overflow-y-auto px-10 py-6 text-white antialiased">
       <input
         type="file"
         ref={fileInputRef}
@@ -93,21 +93,21 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
       />
 
       {/* Top Header Command Strip (matching win_001) */}
-      <div className="flex items-center justify-between pb-7 pt-1">
-        <div className="flex items-center gap-5 text-neutral-400">
+      <div className="flex items-center justify-between pb-8 pt-1">
+        <div className="flex items-center gap-2 text-[#a0a0a0]">
           <button
             type="button"
-            className="hover:text-white transition-colors p-1.5 rounded hover:bg-white/5"
+            className="hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
             title="Announcements"
           >
-            <Megaphone size={19} />
+            <Megaphone size={18} />
           </button>
           <button
             type="button"
-            className="hover:text-white transition-colors p-1.5 rounded hover:bg-white/5 text-[#8ecdf7]"
+            className="hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10 text-[#8ecdf7]"
             title="Connected Device"
           >
-            <Smartphone size={19} />
+            <Smartphone size={18} />
           </button>
         </div>
 
@@ -115,25 +115,25 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
           <button
             type="button"
             onClick={handleAddBook}
-            className="flex items-center justify-center p-2 rounded-full hover:bg-white/10 text-white transition-colors"
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-white/10 text-white transition-colors"
             title="Add Book"
           >
-            <Plus size={24} className="stroke-[2.5]" />
+            <Plus size={22} className="stroke-[2.5]" />
           </button>
         </div>
       </div>
 
       {/* Main 2-Column Grid (matching win_001) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 w-full max-w-[1440px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full max-w-[1440px]">
         {/* ================= LEFT COLUMN: Recent Reads ================= */}
         <section className="flex flex-col">
-          <div className="flex items-center justify-between mb-7">
-            <h2 className="text-[22px] font-normal text-white tracking-tight">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-[20px] font-semibold text-white tracking-tight">
               Recent Reads
             </h2>
             <button
               onClick={onOpenLibrary}
-              className="flex items-center text-[13px] text-neutral-300 hover:text-white transition-colors group cursor-pointer"
+              className="flex items-center text-[13px] text-[#c8c8c8] hover:text-white transition-colors group cursor-pointer py-1"
             >
               <span>Open Library</span>
               <ChevronRight
@@ -143,17 +143,17 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
             </button>
           </div>
 
-          <div className="flex gap-7 items-start">
-            {/* Featured Hero Book Card with Luminous Halo Glow */}
+          <div className="flex gap-6 items-start">
+            {/* Featured Hero Book Card with soft halo */}
             {heroBook && (
               <div
                 onClick={() => onOpenBook(heroBook.id, heroBook)}
-                className="relative cursor-pointer group rounded-[6px] overflow-hidden transition-all duration-300 transform hover:scale-[1.02] flex-shrink-0"
+                className="relative cursor-pointer group rounded-md overflow-hidden transition-all duration-300 transform hover:scale-[1.015] flex-shrink-0 ring-1 ring-white/10"
                 style={{
-                  boxShadow: `0 0 28px rgba(255, 255, 255, 0.28), 0 8px 30px rgba(0, 0, 0, 0.65)`,
+                  boxShadow: `0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.06)`,
                 }}
               >
-                <div className="w-[230px] h-[340px] bg-white rounded-[6px] overflow-hidden border border-white/20 relative flex flex-col justify-between">
+                <div className="w-[264px] h-[384px] bg-white rounded-md overflow-hidden relative flex flex-col justify-between">
                   {heroBook.coverImage ? (
                     <img
                       src={heroBook.coverImage}
@@ -185,7 +185,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
 
                   {/* Optional progress indicator pill */}
                   {heroBook.percentage > 0 && (
-                    <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/70 text-white backdrop-blur-sm">
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums bg-black/70 text-white backdrop-blur-sm">
                       {Math.round(heroBook.percentage)}%
                     </div>
                   )}
@@ -194,14 +194,14 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
             )}
 
             {/* Stacked Secondary Book Covers */}
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5">
               {secondaryRecents.map((book) => (
                 <div
                   key={book.id}
                   onClick={() => onOpenBook(book.id, book)}
-                  className="w-[125px] h-[160px] rounded-[5px] overflow-hidden cursor-pointer hover:scale-105 transition-all duration-200 border border-white/15 relative"
+                  className="w-[148px] h-[198px] rounded-md overflow-hidden cursor-pointer hover:scale-[1.03] transition-all duration-200 ring-1 ring-white/10 relative"
                   style={{
-                    boxShadow: '0 4px 18px rgba(0, 0, 0, 0.45)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
                   }}
                 >
                   {book.coverImage ? (
@@ -232,16 +232,16 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
         </section>
 
         {/* ================= RIGHT COLUMN: Favourite Books & Recently Added ================= */}
-        <section className="flex flex-col space-y-12">
+        <section className="flex flex-col space-y-10">
           {/* Top Section: Favourite Books */}
           <div>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-[22px] font-normal text-white tracking-tight">
+              <h2 className="text-[20px] font-semibold text-white tracking-tight">
                 Favourite Books
               </h2>
               <button
                 onClick={onOpenLibrary}
-                className="flex items-center text-[13px] text-neutral-300 hover:text-white transition-colors group cursor-pointer"
+                className="flex items-center text-[13px] text-[#c8c8c8] hover:text-white transition-colors group cursor-pointer py-1"
               >
                 <span>See more</span>
                 <ChevronRight
@@ -255,14 +255,14 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
               /* Glowing Star Empty State (Faithful 1:1 match to win_001) */
               <div className="h-44 rounded-lg flex flex-col items-center justify-center text-center p-6">
                 <Star
-                  size={42}
+                  size={40}
                   className="mb-4 transition-colors duration-300 fill-current"
                   style={{
                     color: currentTheme.accent,
-                    filter: `drop-shadow(0 0 16px ${currentTheme.accentGlow}) drop-shadow(0 0 6px ${currentTheme.accent})`,
+                    filter: `drop-shadow(0 0 12px ${currentTheme.accentGlow})`,
                   }}
                 />
-                <p className="text-[14px] text-neutral-300 font-normal">
+                <p className="text-[14px] text-[#c8c8c8] font-normal leading-relaxed">
                   Your favourite books would appear here
                 </p>
               </div>
@@ -273,8 +273,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
                   <div
                     key={book.id}
                     onClick={() => onOpenBook(book.id)}
-                    className="w-[115px] h-[160px] rounded-[5px] overflow-hidden cursor-pointer hover:scale-105 transition-all duration-200 border border-white/15 flex-shrink-0"
-                    style={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)' }}
+                    className="w-[132px] h-[184px] rounded-md overflow-hidden cursor-pointer hover:scale-[1.03] transition-all duration-200 ring-1 ring-white/10 flex-shrink-0"
+                    style={{ boxShadow: '0 8px 22px rgba(0, 0, 0, 0.45)' }}
                   >
                     {book.coverImage ? (
                       <img
@@ -299,12 +299,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
           {/* Bottom Section: Recently Added Books */}
           <div>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-[22px] font-normal text-white tracking-tight">
+              <h2 className="text-[20px] font-semibold text-white tracking-tight">
                 Recently Added Books
               </h2>
               <button
                 onClick={onOpenLibrary}
-                className="flex items-center text-[13px] text-neutral-300 hover:text-white transition-colors group cursor-pointer"
+                className="flex items-center text-[13px] text-[#c8c8c8] hover:text-white transition-colors group cursor-pointer py-1"
               >
                 <span>See more</span>
                 <ChevronRight
@@ -319,9 +319,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
                 <div
                   key={book.id}
                   onClick={() => onOpenBook(book.id)}
-                  className="w-[125px] h-[175px] rounded-[5px] overflow-hidden cursor-pointer hover:scale-105 transition-all duration-200 border border-white/20 flex-shrink-0 relative group"
+                  className="w-[148px] h-[208px] rounded-md overflow-hidden cursor-pointer hover:scale-[1.03] transition-all duration-200 ring-1 ring-white/10 flex-shrink-0 relative group"
                   style={{
-                    boxShadow: '0 0 16px rgba(255, 255, 255, 0.16), 0 4px 14px rgba(0, 0, 0, 0.45)',
+                    boxShadow: '0 8px 22px rgba(0, 0, 0, 0.5)',
                   }}
                 >
                   {book.coverImage ? (
