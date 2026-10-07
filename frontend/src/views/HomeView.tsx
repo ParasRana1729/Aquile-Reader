@@ -4,6 +4,7 @@ import { Plus, Megaphone, Smartphone, Star, ChevronRight } from 'lucide-react';
 import { BookWithProgress } from '../types/book';
 import { fetchBooks, fetchRecentReads, importBook, pickBookFile } from '../utils/ipc';
 import { ensureBookCover } from '../utils/pdfThumbnail';
+import { ensureEpubCover } from '../utils/epubCover';
 
 interface HomeViewProps {
   onOpenLibrary: () => void;
@@ -26,16 +27,20 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
       setBooks(allBooks);
       setRecentReads(recents);
 
+      const applyCover = (bookId: string, coverUrl: string) => {
+        setBooks((prev) =>
+          prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
+        );
+        setRecentReads((prev) =>
+          prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
+        );
+      };
       allBooks.forEach((book) => {
-        if ((book.format || '').toLowerCase() === 'pdf') {
-          ensureBookCover(book, (bookId, coverUrl) => {
-            setBooks((prev) =>
-              prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
-            );
-            setRecentReads((prev) =>
-              prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
-            );
-          });
+        const fmt = (book.format || '').toLowerCase();
+        if (fmt === 'pdf') {
+          ensureBookCover(book, applyCover);
+        } else if (fmt === 'epub') {
+          ensureEpubCover(book, applyCover);
         }
       });
     } catch (e) {
@@ -81,6 +86,46 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
   const secondaryRecents = recentReads.slice(1, 3);
   const favoriteBooks = books.filter((b) => b.isFavorite);
   const recentlyAdded = books.slice(0, 4);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full w-full select-none overflow-y-auto px-10 py-6 text-white antialiased" aria-label="Loading home">
+        <div className="flex items-center justify-between pb-8 pt-1">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-lg bg-white/10 animate-pulse" />
+            <div className="w-9 h-9 rounded-lg bg-white/10 animate-pulse" />
+          </div>
+          <div className="w-9 h-9 rounded-full bg-white/10 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full max-w-[1440px]">
+          <section className="flex flex-col">
+            <div className="h-7 w-40 rounded bg-white/10 animate-pulse mb-6" />
+            <div className="flex gap-6 items-start">
+              <div className="w-[264px] h-[384px] rounded-md bg-white/10 animate-pulse flex-shrink-0" />
+              <div className="flex flex-col gap-5">
+                <div className="w-[148px] h-[198px] rounded-md bg-white/10 animate-pulse" />
+                <div className="w-[148px] h-[198px] rounded-md bg-white/10 animate-pulse" />
+              </div>
+            </div>
+          </section>
+          <section className="flex flex-col space-y-10">
+            <div>
+              <div className="h-7 w-44 rounded bg-white/10 animate-pulse mb-5" />
+              <div className="h-44 rounded-lg bg-white/5 animate-pulse" />
+            </div>
+            <div>
+              <div className="h-7 w-56 rounded bg-white/10 animate-pulse mb-5" />
+              <div className="flex gap-5">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="w-[148px] h-[208px] rounded-md bg-white/10 animate-pulse flex-shrink-0" />
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full w-full select-none overflow-y-auto px-10 py-6 text-white antialiased">

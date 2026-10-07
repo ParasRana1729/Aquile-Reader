@@ -67,7 +67,8 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
     if (typeof target === 'string') {
       renditionRef.current.display(target);
     } else if (typeof target === 'number' && bookRef.current) {
-      const cfi = bookRef.current.locations.cfiFromLocation(target);
+      // Callers use 1-based page numbers; locations are 0-based segments.
+      const cfi = bookRef.current.locations.cfiFromLocation(Math.max(0, target - 1));
       if (cfi) renditionRef.current.display(cfi);
     }
   }, []);
@@ -288,7 +289,9 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
         const progress = opened.locations.percentageFromCfi(cfi);
         const total = opened.locations.length() || totalPages || 100;
         const rawPage = opened.locations.locationFromCfi(cfi);
-        const page = typeof rawPage === 'number' ? rawPage : (Number(rawPage) || currentPage || 1);
+        const idx = typeof rawPage === 'number' ? rawPage : (Number(rawPage) || 0);
+        // locations are 0-based segments; the reader counts pages from 1.
+        const page = Math.min(Math.max(1, total), Math.max(1, idx + 1));
         const percentage = Math.round((progress || 0) * 100);
         onPageChange(page, total, percentage);
       });

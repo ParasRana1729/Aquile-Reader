@@ -33,6 +33,7 @@ import {
   scanDirectoryBooks,
 } from '../utils/ipc';
 import { ensureBookCover } from '../utils/pdfThumbnail';
+import { ensureEpubCover } from '../utils/epubCover';
 
 interface LibraryViewProps {
   onOpenBook: (bookId: string, book?: BookWithProgress) => void;
@@ -77,16 +78,20 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
         setSelectedBook(updated || null);
       }
 
+      const applyCover = (bookId: string, coverUrl: string) => {
+        setBooks((prev) =>
+          prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
+        );
+        setSelectedBook((prev) =>
+          prev && prev.id === bookId ? { ...prev, coverImage: coverUrl } : prev
+        );
+      };
       data.forEach((book) => {
-        if ((book.format || '').toLowerCase() === 'pdf') {
-          ensureBookCover(book, (bookId, coverUrl) => {
-            setBooks((prev) =>
-              prev.map((b) => (b.id === bookId ? { ...b, coverImage: coverUrl } : b))
-            );
-            setSelectedBook((prev) =>
-              prev && prev.id === bookId ? { ...prev, coverImage: coverUrl } : prev
-            );
-          });
+        const fmt = (book.format || '').toLowerCase();
+        if (fmt === 'pdf') {
+          ensureBookCover(book, applyCover);
+        } else if (fmt === 'epub') {
+          ensureEpubCover(book, applyCover);
         }
       });
     } catch (e) {
