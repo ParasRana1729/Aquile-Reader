@@ -333,38 +333,41 @@ to the existing WP/AT coverage noted beside it. Status values: `not started` / `
 ### Phase 0 — Reference freeze (complete)
 
 - [x] Extract 1fps reference frames covering home, paged reader, annotations empty state + filter bar, all seven
-      settings pages, theme switching, insights, about page, return-to-home.
+      settings pages, theme switching, insights, about page, return-to-home. Key frames preserved durably at
+      `docs/reference/video-frames/` (`native-f_001`/`f_055` home, `f_006`/`f_011` paged reader, `f_016` home acrylic,
+      `f_021` annotations, `f_026` reader settings, `f_031` sync folders, `f_036`/`f_041` personalization,
+      `f_046` insights, `f_051` about).
 
-### Phase 1 — Reader feel (in progress; 1.1–1.2 complete 2026-10-07)
+### Phase 1 — Reader feel (in progress; 1.1–1.4 complete 2026-10-07)
 
 | # | Gap vs footage | Work | Status |
 | --- | --- | --- | --- |
 | 1.1 | *Page transition style* setting (`None/Slide/Fade/Flip`) is stored by `SettingsView.tsx` but never read anywhere — dead setting | Added `utils/readerPrefs.ts` (localStorage + live-update event); `EpubViewer` plays direction-aware CSS turn animations; `Flip` as rotateY variant; honors `prefers-reduced-motion` | complete |
 | 1.2 | Native turns pages on edge tap/click; ours only has hover-reveal arrow buttons | Added invisible left/right edge click zones (`cursor-w/e-resize`, arrow-key titles) in `EpubViewer`; arrows kept; keyboard handler tracks turn direction | complete |
-| 1.3 | Paged rhythm: full-viewport page, large serif `N of M` divider, running head (title left, publisher right), generous top margin | Audit `EpubViewer` rendition + `PageBoundaryBadge` against frames f_006/f_011; adjust divider scale and running-head placement | not started |
-| 1.4 | Keyboard arrows / single-key page turn | Verify global handler scope (no hijack of inputs); add visible shortcut hints in toolbar tooltips | not started |
+| 1.3 | Paged rhythm: full-viewport page, large serif `N of M` divider, running head, generous top margin | Single-page spread below 1400px; in-book padding 64/72px; 960px centered column; divider scaled to 26px serif-italic; themed loading/error states. Running head left in-book (overlay would duplicate content) | complete |
+| 1.4 | Keyboard arrows / single-key page turn | Verified only arrows/PgUp/PgDn/Space are bound; stripped nine fake emoji pseudo-shortcuts; truthful paging hint on page indicator. New global bindings deferred (needs input-focus guards) | complete |
 
-### Phase 2 — Home, library, annotations
-
-| # | Gap vs footage | Work | Status |
-| --- | --- | --- | --- |
-| 2.1 | Home hero cluster (hero + 2 stacked covers), `Open Library ›` / `See more ›`, glowing-star favorites empty state, 4-cover Recently Added row | Diff `HomeView.tsx` spacing against frames f_001/f_016/f_055 | not started |
-| 2.2 | Annotations filter bar: two dropdowns + **"Show only favorites" checkbox** + pink-lines `No annotations available` empty state (frame f_021) | Verify favorites checkbox exists in `AnnotationsView.tsx`; add if missing; match empty-state art | not started |
-| 2.3 | Library grid density, progress badges, favorite star, empty states | Diff `LibraryView.tsx` against footage; align filter/sort bar | not started |
-
-### Phase 3 — Settings depth
+### Phase 2 — Home, library, annotations (complete 2026-10-07)
 
 | # | Gap vs footage | Work | Status |
 | --- | --- | --- | --- |
-| 3.1 | Reader settings screen shows exactly: ReadAloud auto-scroll, Search engine, Dictionary, Page transition + Experimental (frame f_026) | Remove or relocate any surplus toggles in `SettingsView.tsx` reader section | not started |
-| 3.2 | Sync Folders: `Sync now` + `Add sync folder` must do real work | Wire Tauri folder-watch import behind the existing buttons | not started |
-| 3.3 | Personalization: swatch grid with selected-ring + focus states (frames f_036/f_041) | Verify selection ring, hover, keyboard focus in `SettingsView.tsx` | not started |
-| 3.4 | Insights: 5 stat cards, streak cards, monthly chart, year/book dropdowns, `–` for empty wpm (frame f_046) | Verify `InsightsView.tsx` formats and dropdowns | not started |
-| 3.5 | About: centered icon, version, copyright, action-button row (frame f_051) | Verify `SettingsView.tsx` about section links are live, not dead | not started |
+| 2.1 | Home hero cluster, links, star empty state, Recently Added row | Lighter `›` chevrons (14px); `onOpenBook(id, book)` everywhere (no refetch path). Spacing kept pending measured screenshot diff | complete |
+| 2.2 | Annotations filter bar + empty state | Added working Show-only-favorites checkbox (book-level `isFavorite` — no per-annotation flag in model); two-dropdown composition; pink-lines 14px empty state; h-9 controls | complete |
+| 2.3 | Library grid density, badges, empty states | No library frame in footage — aligned to home tokens instead: ring cards, 11px tabular progress pill, 13/12px meta, softer shadows | complete |
 
-### Phase 4 — Motion & acrylic
+### Phase 3 — Settings depth (complete 2026-10-07; sync backend excluded)
 
-- Page-turn and view transitions 150–250ms ease-out, `prefers-reduced-motion` respected (extends 1.1).
+| # | Gap vs footage | Work | Status |
+| --- | --- | --- | --- |
+| 3.1 | Reader settings exact contents | Removed 3 surplus toggles; dead Change-log link now navigates in-app; Experimental heading to 20px | complete |
+| 3.2 | Sync Folders honesty | Backend still pending — removed fabricated seed/scan states; UI now truthful (empty state, 'not yet scanned' labels, status notice). Folder-watch remains open work | complete (UI) |
+| 3.3 | Personalization swatches | Explicit accent box-shadow ring; focus-visible rings + aria-pressed/titles on all swatches; honest Add-theme copy | complete |
+| 3.4 | Insights cards and filters | Removed hardcoded 182 wpm (null → en dash); fake date-range filter replaced with honest book filter; title/dropdown scale; dead icon imports removed | complete |
+| 3.5 | About buttons | Support→FAQ in-app; Rate/Privacy/Terms reworded truthfully; aria-labels added. Social URLs left (open real sites; handles unverified) | complete |
+
+### Phase 4 — Motion & acrylic (complete 2026-10-07)
+
+- Page-turn and view transitions 150–250ms ease-out, `prefers-reduced-motion` respected (extends 1.1). Complete: shared `--overlay-*` tokens + enter-motion classes; all overlays/drawers unified to theme acrylic; dead `animate-in` classes replaced with live animations; focus rings + ARIA throughout reader chrome.
 - Transparency ON by default like footage; identical blur/saturation on drawers, dialogs, search overlay.
 - One systematic pass: scrollbars, hover states, focus rings, tooltips with shortcut hints.
 

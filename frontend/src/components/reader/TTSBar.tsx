@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useTTS } from '../../utils/tts';
 import { ReadingTheme, READER_THEMES } from '../../types/reader';
+import { ACRYLIC_FILTER, ACRYLIC_OPACITY_PCT } from '../AcrylicCanvas';
 
 export interface TTSBarProps {
   isOpen: boolean;
@@ -82,6 +83,10 @@ export const TTSBar: React.FC<TTSBarProps> = ({
   if (!isOpen) return null;
 
   const isDark = READER_THEMES[theme]?.isDark ?? true;
+  const toolbarBg = READER_THEMES[theme]?.toolbarBg ?? READER_THEMES.night.toolbarBg;
+  // Shared acrylic surface: theme toolbar token at theme opacity + identical
+  // blur/saturation to every other reader overlay (Phase 4 §13).
+  const surfaceBg = `color-mix(in srgb, ${toolbarBg} ${ACRYLIC_OPACITY_PCT}%, transparent)`;
   const isPlaying = status === 'playing';
   const isPaused = status === 'paused';
   const totalSentences = sentences.length;
@@ -143,11 +148,18 @@ export const TTSBar: React.FC<TTSBarProps> = ({
 
   return (
     <div
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-2xl rounded-2xl shadow-2xl backdrop-blur-xl border transition-all duration-300 select-none animate-in fade-in slide-in-from-bottom-5 ${
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-2xl rounded-2xl shadow-2xl acrylic-overlay overlay-drop border transition-all duration-200 ease-out select-none ${
         isDark
-          ? 'bg-[#1e1e1e]/95 border-white/15 text-neutral-100 shadow-black/60'
-          : 'bg-[#f5f5f5]/95 border-black/10 text-neutral-900 shadow-neutral-500/20'
+          ? 'border-white/15 text-neutral-100 shadow-black/60'
+          : 'border-black/10 text-neutral-900 shadow-neutral-500/20'
       }`}
+      style={{
+        backgroundColor: surfaceBg,
+        backdropFilter: ACRYLIC_FILTER,
+        WebkitBackdropFilter: ACRYLIC_FILTER,
+      }}
+      role="region"
+      aria-label="Voice narration"
     >
       <div className="p-4 flex flex-col gap-3">
         {/* Top Header Row: Status, Sentence Tracker, and Close */}
@@ -187,8 +199,9 @@ export const TTSBar: React.FC<TTSBarProps> = ({
             )}
             <button
               onClick={handleClose}
-              className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-neutral-400 hover:text-white"
-              title="Close Voice Narration"
+              className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-150 ease-out text-neutral-400 hover:text-white"
+              title="Close voice narration"
+              aria-label="Close voice narration"
             >
               <X size={16} />
             </button>
@@ -207,9 +220,16 @@ export const TTSBar: React.FC<TTSBarProps> = ({
         </div>
 
         {/* Mini Progress Bar */}
-        <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
+        <div
+          className="w-full bg-white/10 h-1 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-label="Narration progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent}
+        >
           <div
-            className="h-full bg-primary transition-all duration-300 ease-out"
+            className="h-full bg-primary transition-all duration-200 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -222,8 +242,9 @@ export const TTSBar: React.FC<TTSBarProps> = ({
             <button
               onClick={prevSentence}
               disabled={totalSentences === 0 || currentIndex === 0}
-              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              title="Previous Sentence"
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 ease-out"
+              title="Previous sentence"
+              aria-label="Previous sentence"
             >
               <SkipBack size={18} />
             </button>
@@ -231,12 +252,14 @@ export const TTSBar: React.FC<TTSBarProps> = ({
             {/* Play / Pause Toggle */}
             <button
               onClick={handlePlayToggle}
-              className={`p-2.5 rounded-full font-medium transition-all shadow-md active:scale-95 ${
+              className={`p-2.5 rounded-full font-medium transition-all duration-150 ease-out shadow-md active:scale-95 ${
                 isPlaying
                   ? 'bg-primary text-white shadow-primary/30 ring-2 ring-primary/40'
                   : 'bg-primary text-white hover:brightness-110 shadow-primary/20'
               }`}
               title={isPlaying ? 'Pause' : 'Play'}
+              aria-label={isPlaying ? 'Pause narration' : 'Play narration'}
+              aria-pressed={isPlaying}
             >
               {isPlaying ? <Pause size={18} /> : <Play size={18} className="translate-x-0.5" />}
             </button>
@@ -245,8 +268,9 @@ export const TTSBar: React.FC<TTSBarProps> = ({
             <button
               onClick={handleStop}
               disabled={status === 'idle' || status === 'stopped'}
-              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              title="Stop Narration"
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 ease-out"
+              title="Stop narration"
+              aria-label="Stop narration"
             >
               <Square size={16} />
             </button>
@@ -255,8 +279,9 @@ export const TTSBar: React.FC<TTSBarProps> = ({
             <button
               onClick={nextSentence}
               disabled={totalSentences === 0 || currentIndex >= totalSentences - 1}
-              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              title="Next Sentence"
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 ease-out"
+              title="Next sentence"
+              aria-label="Next sentence"
             >
               <SkipForward size={18} />
             </button>
@@ -269,7 +294,9 @@ export const TTSBar: React.FC<TTSBarProps> = ({
               <button
                 type="button"
                 onClick={() => setIsVoiceOpen(!isVoiceOpen)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs max-w-[140px] sm:max-w-[200px] truncate transition-colors ${
+                aria-haspopup="listbox"
+                aria-expanded={isVoiceOpen}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs max-w-[140px] sm:max-w-[200px] truncate transition-colors duration-150 ease-out ${
                   isDark
                     ? 'bg-white/5 border-white/10 hover:bg-white/10 text-neutral-200'
                     : 'bg-black/5 border-black/10 hover:bg-black/10 text-neutral-800'
@@ -284,11 +311,18 @@ export const TTSBar: React.FC<TTSBarProps> = ({
 
               {isVoiceOpen && (
                 <div
-                  className={`absolute bottom-full right-0 mb-2 w-64 max-h-56 overflow-y-auto rounded-xl shadow-2xl border p-1 z-50 backdrop-blur-xl ${
+                  role="listbox"
+                  aria-label="Voice selection"
+                  className={`absolute bottom-full right-0 mb-2 w-64 max-h-56 overflow-y-auto rounded-xl shadow-2xl border p-1 z-50 acrylic-overlay overlay-fade ${
                     isDark
-                      ? 'bg-[#2b2b2b] border-white/15 text-neutral-200'
-                      : 'bg-white border-black/15 text-neutral-800'
+                      ? 'border-white/15 text-neutral-200'
+                      : 'border-black/15 text-neutral-800'
                   }`}
+                  style={{
+                    backgroundColor: surfaceBg,
+                    backdropFilter: ACRYLIC_FILTER,
+                    WebkitBackdropFilter: ACRYLIC_FILTER,
+                  }}
                 >
                   <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider opacity-50">
                     Voice Selection
@@ -303,11 +337,13 @@ export const TTSBar: React.FC<TTSBarProps> = ({
                       return (
                         <button
                           key={v.voiceURI || v.name}
+                          role="option"
+                          aria-selected={isSelected}
                           onClick={() => {
                             setVoice(v);
                             setIsVoiceOpen(false);
                           }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors duration-150 ease-out flex items-center justify-between ${
                             isSelected
                               ? 'bg-primary/20 text-primary font-medium'
                               : isDark
@@ -334,12 +370,15 @@ export const TTSBar: React.FC<TTSBarProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSpeedOpen(!isSpeedOpen)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono transition-colors ${
+                aria-haspopup="listbox"
+                aria-expanded={isSpeedOpen}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono transition-colors duration-150 ease-out ${
                   isDark
                     ? 'bg-white/5 border-white/10 hover:bg-white/10 text-neutral-200'
                     : 'bg-black/5 border-black/10 hover:bg-black/10 text-neutral-800'
                 }`}
                 title="Speaking Speed"
+                aria-label={`Speaking speed ${rate}x`}
               >
                 <Gauge size={13} className="text-primary flex-shrink-0" />
                 <span>{rate}x</span>
@@ -348,11 +387,18 @@ export const TTSBar: React.FC<TTSBarProps> = ({
 
               {isSpeedOpen && (
                 <div
-                  className={`absolute bottom-full right-0 mb-2 w-28 rounded-xl shadow-2xl border p-1 z-50 backdrop-blur-xl ${
+                  role="listbox"
+                  aria-label="Speaking speed"
+                  className={`absolute bottom-full right-0 mb-2 w-28 rounded-xl shadow-2xl border p-1 z-50 acrylic-overlay overlay-fade ${
                     isDark
-                      ? 'bg-[#2b2b2b] border-white/15 text-neutral-200'
-                      : 'bg-white border-black/15 text-neutral-800'
+                      ? 'border-white/15 text-neutral-200'
+                      : 'border-black/15 text-neutral-800'
                   }`}
+                  style={{
+                    backgroundColor: surfaceBg,
+                    backdropFilter: ACRYLIC_FILTER,
+                    WebkitBackdropFilter: ACRYLIC_FILTER,
+                  }}
                 >
                   <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider opacity-50 font-sans">
                     Speed
@@ -362,11 +408,13 @@ export const TTSBar: React.FC<TTSBarProps> = ({
                     return (
                       <button
                         key={speed}
+                        role="option"
+                        aria-selected={isSelected}
                         onClick={() => {
                           setRate(speed);
                           setIsSpeedOpen(false);
                         }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors duration-150 ease-out flex items-center justify-between ${
                           isSelected
                             ? 'bg-primary/20 text-primary font-medium'
                             : isDark

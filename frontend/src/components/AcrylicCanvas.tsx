@@ -6,6 +6,16 @@ interface AcrylicCanvasProps {
   showSimulatedWallpaper?: boolean;
 }
 
+/**
+ * Canonical acrylic treatment (IMPLEMENTATION_PLAN.md §13 Phase 4).
+ * Drawers, popover, search overlay, and TTS bar reuse these tokens so every
+ * reader surface shares identical blur/saturation. Surface translucency stays
+ * at the theme `--acrylic-opacity` (85%) default.
+ */
+export const ACRYLIC_FILTER = 'blur(20px) saturate(140%)';
+/** Translucent surface derived from an existing opaque theme token (percent). */
+export const ACRYLIC_OPACITY_PCT = 85;
+
 export const AcrylicCanvas: React.FC<AcrylicCanvasProps> = ({
   children,
   showSimulatedWallpaper = true,
@@ -45,13 +55,13 @@ export const AcrylicCanvas: React.FC<AcrylicCanvasProps> = ({
 
       {/* Acrylic Glass Surface */}
       <div
-        className="relative z-10 w-full h-full flex flex-col transition-colors duration-200"
+        className="relative z-10 w-full h-full flex flex-col transition-colors duration-200 ease-out"
         style={{
           backgroundColor: isTransparent
             ? `rgba(28, 28, 30, ${opacityDecimal})`
             : '#1f1f1f',
-          backdropFilter: isTransparent ? 'blur(20px) saturate(140%)' : 'none',
-          WebkitBackdropFilter: isTransparent ? 'blur(20px) saturate(140%)' : 'none',
+          backdropFilter: isTransparent ? ACRYLIC_FILTER : 'none',
+          WebkitBackdropFilter: isTransparent ? ACRYLIC_FILTER : 'none',
           transform: 'translateZ(0)',
           contain: 'paint',
         }}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TOCItem, ReadingTheme, READER_THEMES } from '../../types/reader';
 import { X, List, Search } from 'lucide-react';
+import { ACRYLIC_FILTER, ACRYLIC_OPACITY_PCT } from '../AcrylicCanvas';
 
 interface TOCDrawerProps {
   isOpen: boolean;
@@ -72,9 +73,11 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
 
   return (
     <aside
-      className="h-full w-[300px] max-w-[82vw] shrink-0 flex flex-col min-h-0"
+      className="h-full w-[300px] max-w-[82vw] shrink-0 flex flex-col min-h-0 drawer-slide-in"
       style={{
-        backgroundColor: currentTheme.toolbarBg,
+        backgroundColor: `color-mix(in srgb, ${currentTheme.toolbarBg} ${ACRYLIC_OPACITY_PCT}%, transparent)`,
+        backdropFilter: ACRYLIC_FILTER,
+        WebkitBackdropFilter: ACRYLIC_FILTER,
         borderRight: `1px solid ${currentTheme.border}`,
         color: currentTheme.text,
       }}
@@ -97,7 +100,7 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-md transition-colors"
+          className="p-1.5 rounded-md transition-colors duration-150 ease-out"
           style={{ color: currentTheme.muted }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = currentTheme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
@@ -107,7 +110,16 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
             e.currentTarget.style.backgroundColor = 'transparent';
             e.currentTarget.style.color = currentTheme.muted;
           }}
+          onFocus={(e) => {
+            e.currentTarget.style.backgroundColor = currentTheme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+            e.currentTarget.style.color = currentTheme.text;
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = currentTheme.muted;
+          }}
           title="Close contents"
+          aria-label="Close contents"
         >
           <X size={15} />
         </button>
@@ -128,7 +140,8 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter chapters…"
-              className="flex-1 bg-transparent text-[13px] focus:outline-none min-w-0"
+              aria-label="Filter chapters"
+              className="flex-1 bg-transparent text-[13px] min-w-0"
               style={{ color: currentTheme.text }}
             />
             {filter && (
@@ -136,6 +149,7 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
                 onClick={() => setFilter('')}
                 style={{ color: currentTheme.muted }}
                 title="Clear filter"
+                aria-label="Clear filter"
               >
                 <X size={13} />
               </button>
@@ -164,7 +178,8 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
                   onClose();
                 }}
                 title={item.label}
-                className="w-full text-left rounded-md flex items-center gap-2 pl-2 pr-2.5 transition-colors"
+                aria-current={isActive ? 'true' : undefined}
+                className="w-full text-left rounded-md flex items-center gap-2 pl-2 pr-2.5 transition-colors duration-150 ease-out"
                 style={{
                   paddingTop: 7,
                   paddingBottom: 7,
@@ -184,6 +199,16 @@ export const TOCDrawer: React.FC<TOCDrawerProps> = ({
                   }
                 }}
                 onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                onFocus={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = currentTheme.isDark
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.04)';
+                  }
+                }}
+                onBlur={(e) => {
                   if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >

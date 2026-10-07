@@ -8,6 +8,13 @@
   --titlebar-text: #ffffff;
   --acrylic-opacity: 0.85;
 
+  /* Shared acrylic + overlay motion tokens (IMPLEMENTATION_PLAN.md §13 Phase 4):
+     every reader surface (drawers, popover, search overlay, TTS bar) reuses
+     these so blur/saturation treatment is identical. Matches AcrylicCanvas. */
+  --acrylic-blur: blur(20px) saturate(140%);
+  --overlay-duration: 180ms;
+  --overlay-easing: ease-out;
+
   /* Native Windows UI stack: Segoe UI Variable first, system fallbacks, no webfont dependency */
   --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   --font-serif-book: Georgia, 'Times New Roman', 'Cambria', 'Merriweather', serif;
@@ -167,6 +174,41 @@ input[type='range']::-moz-range-thumb {
 .epub-turn-fade-next, .epub-turn-fade-prev { animation: epub-turn-fade 200ms ease-out; }
 .epub-turn-flip-next { animation: epub-turn-flip-next 220ms ease-out; transform-origin: left center; }
 .epub-turn-flip-prev { animation: epub-turn-flip-prev 220ms ease-out; transform-origin: right center; }
+
+/* Reader overlay acrylic + enter motion (Phase 4 §13).
+   One shared treatment for drawers, popover, search overlay, TTS bar:
+   identical backdrop blur/saturation, 150–250ms ease-out transitions.
+   (tailwindcss-animate is not installed, so the legacy `animate-in …`
+   classes on these surfaces were no-ops; these keyframes provide the motion.) */
+.acrylic-overlay {
+  backdrop-filter: var(--acrylic-blur);
+  -webkit-backdrop-filter: var(--acrylic-blur);
+}
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes overlay-rise {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes overlay-drop {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes overlay-pop {
+  from { opacity: 0; transform: scale(0.98) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes drawer-slide-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.overlay-fade { animation: overlay-fade var(--overlay-duration) var(--overlay-easing); }
+.overlay-rise { animation: overlay-rise var(--overlay-duration) var(--overlay-easing); }
+.overlay-drop { animation: overlay-drop 200ms var(--overlay-easing); }
+.overlay-pop { animation: overlay-pop 200ms var(--overlay-easing); }
+.drawer-slide-in { animation: drawer-slide-in 200ms var(--overlay-easing); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

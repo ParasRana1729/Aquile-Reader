@@ -132,7 +132,9 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
         'text-rendering': 'optimizeLegibility !important',
         overflowWrap: 'break-word !important',
         margin: '0 auto !important',
-        padding: `24px ${marginPx}px 48px !important`,
+        // Generous top margin per native paged rhythm (frames f_006/f_011):
+        // airy full-viewport single page, not cramped chrome-to-text.
+        padding: `64px ${marginPx}px 72px !important`,
       },
       p: {
         'line-height': `${settings.lineSpacing} !important`,
@@ -188,7 +190,10 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
       height: '100%',
       flow: 'paginated',
       spread: isDual ? 'always' : 'none',
-      minSpreadWidth: 768,
+      // Native is a single full-viewport page at 1280px logical width
+      // (frames f_006/f_011); keep single-page there and only allow a
+      // dual spread on wider viewports.
+      minSpreadWidth: 1400,
     });
     renditionRef.current = rendition;
 
@@ -319,6 +324,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
   };
 
   if (error) {
+    const errorAccent = currentTheme.isDark ? '#f87171' : '#b91c1c';
     return (
       <div
         className="flex flex-col items-center justify-center h-full w-full p-6 text-center select-none"
@@ -327,11 +333,16 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
           color: currentTheme.text,
         }}
       >
-        <div className="text-red-400 font-medium mb-2">Error loading EPUB</div>
-        <div className="text-xs opacity-70 max-w-md">{error}</div>
+        <div className="font-medium mb-2" style={{ color: errorAccent, fontSize: '14px' }}>Error loading EPUB</div>
+        <div className="text-[13px] max-w-md" style={{ color: currentTheme.muted }}>{error}</div>
       </div>
     );
   }
+
+  // Single-page rendition stays in a centered, airy content column at
+  // ~1280px logical width (native f_006/f_011); an explicit dual spread
+  // keeps the full viewport on wider screens.
+  const isDualPage = settings.spreadMode === 'dual' || settings.isTwoColumn;
 
   return (
     <div
@@ -342,17 +353,30 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({
       }}
     >
       {loading && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center space-y-3 bg-inherit">
+        <div
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center space-y-3"
+          style={{ backgroundColor: currentTheme.bg }}
+        >
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-[13px] text-neutral-400 font-sans tracking-wide">
+          <span
+            className="text-[13px] font-sans tracking-wide"
+            style={{ color: currentTheme.muted }}
+          >
             Opening book…
           </span>
         </div>
       )}
 
       {/* Main EPUB Reader Viewport */}
-      <div className="flex-1 w-full h-full relative flex items-center justify-center">
-        <div ref={pageAnimRef} className="w-full h-full">
+      <div className="flex-1 w-full h-full relative flex items-center justify-center px-6 md:px-10 py-6">
+        <div
+          ref={pageAnimRef}
+          className="w-full h-full"
+          style={{
+            maxWidth: isDualPage ? '100%' : '960px',
+            margin: '0 auto',
+          }}
+        >
           <div ref={viewerRef} className="w-full h-full" />
         </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Highlighter,
+  AlignLeft,
   Search,
   Filter,
   Trash2,
@@ -30,6 +30,7 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBookId, setSelectedBookId] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<'all' | 'notes' | 'highlights'>('all');
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Load annotations and books
@@ -50,6 +51,13 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
     loadData();
   }, []);
 
+  // IDs of books the user marked as favorite (BookWithProgress.isFavorite).
+  // Annotation has no per-item favorite flag, so "favorites" maps to the
+  // parent book's favorite state.
+  const favoriteBookIds = useMemo(() => {
+    return new Set(books.filter((b) => b.isFavorite).map((b) => b.id));
+  }, [books]);
+
   // Filtered annotations
   const filteredAnnotations = useMemo(() => {
     return annotations.filter((ann) => {
@@ -66,6 +74,11 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
         return false;
       }
 
+      // Favorites filter: keep only annotations from favorite books
+      if (showOnlyFavorites && (!ann.bookId || !favoriteBookIds.has(ann.bookId))) {
+        return false;
+      }
+
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -77,7 +90,7 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
 
       return true;
     });
-  }, [annotations, selectedBookId, selectedType, searchQuery]);
+  }, [annotations, selectedBookId, selectedType, showOnlyFavorites, favoriteBookIds, searchQuery]);
 
   // Handle Delete
   const handleDelete = async (id: string) => {
@@ -138,7 +151,7 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search notes & highlights..."
-              className="pl-9 pr-3 py-1.5 bg-[#252525] border border-white/10 rounded-lg text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-primary w-56 transition-all"
+              className="pl-9 pr-3 h-9 bg-[#252525] border border-white/10 rounded-lg text-[13px] text-white placeholder-neutral-500 focus:outline-hidden focus:border-primary w-56 transition-all"
             />
           </div>
 
@@ -146,9 +159,9 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
           <select
             value={selectedBookId}
             onChange={(e) => setSelectedBookId(e.target.value)}
-            className="bg-[#252525] border border-white/10 rounded-lg text-xs text-neutral-200 px-3 py-1.5 focus:outline-hidden focus:border-primary transition-all cursor-pointer"
+            className="h-9 bg-[#252525] border border-white/10 rounded-lg text-[13px] text-neutral-200 px-3 focus:outline-hidden focus:border-primary transition-all cursor-pointer"
           >
-            <option value="all">All Books</option>
+            <option value="all">All</option>
             {books.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.title}
@@ -156,45 +169,35 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
             ))}
           </select>
 
-          {/* Type Filter Pills */}
-          <div className="flex items-center bg-[#252525] border border-white/10 rounded-lg p-0.5 text-xs">
-            <button
-              onClick={() => setSelectedType('all')}
-              className={`px-3 py-1 rounded-md transition-colors ${
-                selectedType === 'all'
-                  ? 'bg-white/15 text-white font-medium'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setSelectedType('notes')}
-              className={`px-3 py-1 rounded-md transition-colors ${
-                selectedType === 'notes'
-                  ? 'bg-white/15 text-white font-medium'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              Notes
-            </button>
-            <button
-              onClick={() => setSelectedType('highlights')}
-              className={`px-3 py-1 rounded-md transition-colors ${
-                selectedType === 'highlights'
-                  ? 'bg-white/15 text-white font-medium'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              Highlights
-            </button>
-          </div>
+          {/* Type Filter Dropdown (mirrors native second "All" dropdown) */}
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value as 'all' | 'notes' | 'highlights')}
+            className="h-9 bg-[#252525] border border-white/10 rounded-lg text-[13px] text-neutral-200 px-3 focus:outline-hidden focus:border-primary transition-all cursor-pointer"
+            title="Filter by annotation type"
+          >
+            <option value="all">All</option>
+            <option value="notes">Notes</option>
+            <option value="highlights">Highlights</option>
+          </select>
+
+          {/* Favorites Checkbox (native: "Show only favorites") */}
+          <label className="flex items-center gap-2 text-[13px] text-neutral-300 cursor-pointer select-none whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={showOnlyFavorites}
+              onChange={(e) => setShowOnlyFavorites(e.target.checked)}
+              className="h-4 w-4 rounded-sm cursor-pointer"
+              style={{ accentColor: currentTheme.accent }}
+            />
+            Show only favorites
+          </label>
 
           {/* Export Button */}
           {filteredAnnotations.length > 0 && (
             <button
               onClick={handleExportMarkdown}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-neutral-200 hover:text-white text-xs transition-colors"
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-white/10 hover:bg-white/15 text-neutral-200 hover:text-white text-[13px] transition-colors"
               title="Export visible annotations to Markdown"
             >
               <Download size={14} />
@@ -212,34 +215,31 @@ export const AnnotationsView: React.FC<AnnotationsViewProps> = ({ onOpenBook }) 
             <span className="text-xs text-neutral-400">Loading your annotations...</span>
           </div>
         ) : filteredAnnotations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center py-20 text-neutral-400">
-            <Highlighter
-              size={48}
-              className="mb-4 transition-colors opacity-60"
+          <div className="flex flex-col items-center justify-center text-center min-h-[50vh] py-20">
+            <AlignLeft
+              size={32}
+              className="mb-4 opacity-80"
               style={{ color: currentTheme.accent }}
             />
-            <h3 className="text-[17px] font-semibold text-white mb-1.5">
-              {searchQuery || selectedBookId !== 'all' || selectedType !== 'all'
-                ? 'No Matching Annotations'
-                : 'No Annotations Yet'}
-            </h3>
-            <p className="text-[13px] max-w-sm text-neutral-400 mb-4">
-              {searchQuery || selectedBookId !== 'all' || selectedType !== 'all'
-                ? 'Try adjusting your search query or book filters to find what you are looking for.'
-                : 'Highlights and margin notes you create while reading are saved and automatically organized here.'}
-            </p>
-            {(searchQuery || selectedBookId !== 'all' || selectedType !== 'all') && (
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedBookId('all');
-                  setSelectedType('all');
-                }}
-                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs text-white transition-colors"
-              >
-                Clear Filters
-              </button>
-            )}
+            <p className="text-sm text-neutral-400">No annotations available</p>
+            {searchQuery || selectedBookId !== 'all' || selectedType !== 'all' || showOnlyFavorites ? (
+              <>
+                <p className="text-[13px] max-w-sm text-neutral-500 mt-2 mb-4">
+                  Try adjusting your search query or filters to find what you are looking for.
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedBookId('all');
+                    setSelectedType('all');
+                    setShowOnlyFavorites(false);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs text-white transition-colors"
+                >
+                  Clear Filters
+                </button>
+              </>
+            ) : null}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">

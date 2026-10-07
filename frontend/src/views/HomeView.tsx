@@ -137,7 +137,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
             >
               <span>Open Library</span>
               <ChevronRight
-                size={16}
+                size={14}
                 className="ml-0.5 group-hover:translate-x-0.5 transition-transform"
               />
             </button>
@@ -245,7 +245,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
               >
                 <span>See more</span>
                 <ChevronRight
-                  size={16}
+                  size={14}
                   className="ml-0.5 group-hover:translate-x-0.5 transition-transform"
                 />
               </button>
@@ -272,7 +272,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
                 {favoriteBooks.map((book) => (
                   <div
                     key={book.id}
-                    onClick={() => onOpenBook(book.id)}
+                    onClick={() => onOpenBook(book.id, book)}
                     className="w-[132px] h-[184px] rounded-md overflow-hidden cursor-pointer hover:scale-[1.03] transition-all duration-200 ring-1 ring-white/10 flex-shrink-0"
                     style={{ boxShadow: '0 8px 22px rgba(0, 0, 0, 0.45)' }}
                   >
@@ -308,7 +308,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
               >
                 <span>See more</span>
                 <ChevronRight
-                  size={16}
+                  size={14}
                   className="ml-0.5 group-hover:translate-x-0.5 transition-transform"
                 />
               </button>
@@ -318,7 +318,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenLibrary, onOpenBook })
               {recentlyAdded.map((book) => (
                 <div
                   key={book.id}
-                  onClick={() => onOpenBook(book.id)}
+                  onClick={() => onOpenBook(book.id, book)}
                   className="w-[148px] h-[208px] rounded-md overflow-hidden cursor-pointer hover:scale-[1.03] transition-all duration-200 ring-1 ring-white/10 flex-shrink-0 relative group"
                   style={{
                     boxShadow: '0 8px 22px rgba(0, 0, 0, 0.5)',

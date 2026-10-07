@@ -475,7 +475,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
           {filteredBooks.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 text-neutral-400">
               <FolderOpen size={48} className="mb-4 opacity-40" />
-              <p className="text-[16px] text-neutral-300 font-medium">No books found</p>
+              <p className="text-[14px] text-[#c8c8c8] font-medium">No books found</p>
               <p className="text-[13px] text-neutral-500 mt-1 max-w-sm">
                 Add EPUB, PDF, or Comic archives via single/bulk file selection, drag-and-drop, or folder scanning.
               </p>
@@ -511,7 +511,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
                   className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
                     selectedBook?.id === book.id
                       ? 'bg-white/15 border-white/30'
-                      : 'bg-white/5 border-white/5 hover:bg-white/10'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10'
                   }`}
                 >
                   <div className="flex items-center gap-4 min-w-0">
@@ -578,15 +578,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
                   >
                     {/* Book Cover Card */}
                     <div
-                      className={`w-[145px] h-[210px] rounded-[6px] overflow-hidden relative transition-all duration-300 transform group-hover:scale-105 border ${
+                      className={`w-[145px] h-[210px] rounded-[6px] overflow-hidden relative transition-all duration-300 transform group-hover:scale-105 ring-1 ${
                         isSelected
-                          ? 'border-white/50 scale-105'
-                          : 'border-white/15'
+                          ? 'ring-white/50 scale-105'
+                          : 'ring-white/10'
                       }`}
                       style={{
                         boxShadow: isSelected
                           ? `0 0 24px rgba(255, 255, 255, 0.4), 0 8px 24px rgba(0, 0, 0, 0.6)`
-                          : '0 4px 18px rgba(0, 0, 0, 0.45)',
+                          : '0 8px 22px rgba(0, 0, 0, 0.5)',
                       }}
                     >
                       {book.coverImage ? (
@@ -613,14 +613,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
 
                       {/* Reading Progress Pill */}
                       {book.percentage > 0 && (
-                        <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-black/75 text-white backdrop-blur-sm shadow">
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums bg-black/70 text-white backdrop-blur-sm">
                           {Math.round(book.percentage)}%
                         </div>
                       )}
 
                       {/* Favorite Star Badge */}
                       {book.isFavorite && (
-                        <div className="absolute top-2 right-2 p-1 rounded-full bg-black/60 backdrop-blur-sm">
+                        <div
+                          className="absolute top-2 right-2 p-1 rounded-full bg-black/60 backdrop-blur-sm"
+                          title="Favourite"
+                        >
                           <Star size={12} className="fill-yellow-400 text-yellow-400" />
                         </div>
                       )}
@@ -633,10 +636,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenBook, refreshTri
 
                     {/* Book Metadata Below Card */}
                     <div className="mt-3 text-center w-[145px]">
-                      <div className="text-[12.5px] font-medium text-white truncate leading-snug">
+                      <div className="text-[13px] font-medium text-white truncate leading-snug">
                         {book.title}
                       </div>
-                      <div className="text-[11px] text-neutral-400 truncate mt-0.5">
+                      <div className="text-[12px] text-neutral-400 truncate mt-0.5">
                         {book.author || 'Unknown Author'}
                       </div>
                     </div>

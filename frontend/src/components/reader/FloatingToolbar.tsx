@@ -127,7 +127,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onToggleTOC}
             className={buttonClass(isTOCOpen)}
-            title="Table of Contents (☰)"
+            title="Table of Contents"
           >
             <Menu size={16} />
           </button>
@@ -137,7 +137,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onToggleAnnotations}
             className={buttonClass(isAnnotationsOpen)}
-            title="Annotations & Notes (📝)"
+            title="Annotations & Notes"
           >
             <FileText size={16} />
           </button>
@@ -147,7 +147,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onToggleBookmarks}
             className={buttonClass(isBookmarksOpen)}
-            title="Bookmarks (🔖)"
+            title="Bookmarks"
           >
             <Bookmark size={16} />
           </button>
@@ -163,7 +163,10 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             </span>
           )}
           {totalPages > 0 && (
-            <span className="tabular-nums font-normal">
+            <span
+              className="tabular-nums font-normal"
+              title="Turn pages with ← →, PageUp / PageDown, or Space"
+            >
               {currentPage} of {totalPages}
             </span>
           )}
@@ -177,7 +180,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onToggleSearch}
             className={buttonClass(isSearchOpen)}
-            title="Search in Book (🔍)"
+            title="Search in Book"
           >
             <Search size={16} />
           </button>
@@ -189,7 +192,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onToggleReadAloud}
             className={buttonClass(isReadingAloud)}
-            title={isReadingAloud ? 'Stop ReadAloud TTS' : 'Start ReadAloud TTS (🔊)'}
+            title={isReadingAloud ? 'Stop ReadAloud TTS' : 'Start ReadAloud TTS'}
           >
             {isReadingAloud ? (
               <VolumeX size={16} className="text-red-400 animate-pulse" />
@@ -203,7 +206,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onZoomOut}
             className={buttonClass()}
-            title="Zoom Out (🔍-)"
+            title="Zoom Out"
           >
             <ZoomOut size={16} />
           </button>
@@ -213,7 +216,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={onZoomIn}
             className={buttonClass()}
-            title="Zoom In (🔍+)"
+            title="Zoom In"
           >
             <ZoomIn size={16} />
           </button>
@@ -229,7 +232,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
               });
             }}
             className={buttonClass(isDualSpread)}
-            title={isDualSpread ? 'Switch to Single Column' : 'Switch to Two-Page Spread (📖)'}
+            title={isDualSpread ? 'Switch to Single Column' : 'Switch to Two-Page Spread'}
           >
             <Columns size={16} />
           </button>
@@ -239,7 +242,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={() => setIsAppearanceOpen(!isAppearanceOpen)}
             className={buttonClass(isAppearanceOpen)}
-            title="Appearance & Typography Settings (Aa)"
+            title="Appearance & Typography Settings"
           >
             <Type size={16} />
           </button>
@@ -251,7 +254,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             type="button"
             onClick={handleToggleFullscreen}
             className={buttonClass(isFullscreen)}
-            title="Toggle Fullscreen (⤢)"
+            title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>

@@ -16,6 +16,7 @@ import {
   X,
   Type,
 } from 'lucide-react';
+import { ACRYLIC_FILTER, ACRYLIC_OPACITY_PCT } from '../AcrylicCanvas';
 
 interface AppearancePopoverProps {
   settings: ReaderSettings;
@@ -32,8 +33,8 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
   const isDark = currentThemeConfig.isDark;
 
   const popoverBg = isDark
-    ? 'bg-[#242424]/95 text-neutral-100 border-white/10 shadow-black/60'
-    : 'bg-white/95 text-neutral-900 border-black/10 shadow-black/20';
+    ? 'text-neutral-100 border-white/10 shadow-black/60'
+    : 'text-neutral-900 border-black/10 shadow-black/20';
   const sectionBg = isDark ? 'bg-white/5 border-white/5' : 'bg-black/5 border-black/5';
   const labelMuted = isDark ? 'text-neutral-400' : 'text-neutral-500';
   const buttonHover = isDark ? 'hover:bg-white/10' : 'hover:bg-black/10';
@@ -59,7 +60,12 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
 
   return (
     <div
-      className={`absolute top-12 right-4 md:right-6 w-88 md:w-96 max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl backdrop-blur-2xl border p-5 z-50 select-none animate-in fade-in zoom-in-95 duration-150 custom-scrollbar ${popoverBg}`}
+      className={`absolute top-12 right-4 md:right-6 w-88 md:w-96 max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl acrylic-overlay overlay-pop border p-5 z-50 select-none ${popoverBg}`}
+      style={{
+        backgroundColor: `color-mix(in srgb, ${currentThemeConfig.toolbarBg} ${ACRYLIC_OPACITY_PCT}%, transparent)`,
+        backdropFilter: ACRYLIC_FILTER,
+        WebkitBackdropFilter: ACRYLIC_FILTER,
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
@@ -70,8 +76,9 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
         </div>
         <button
           onClick={onClose}
-          className={`p-1 rounded-md transition-colors ${buttonHover} ${labelMuted}`}
-          title="Close Popover"
+          className={`p-1 rounded-md transition-colors duration-150 ease-out ${buttonHover} ${labelMuted}`}
+          title="Close appearance settings"
+          aria-label="Close appearance settings"
         >
           <X size={15} />
         </button>
@@ -90,10 +97,11 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                   isTwoColumn: false,
                 })
               }
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-xs font-medium transition-all ${
+              aria-pressed={!isDualSpread}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-xs font-medium transition-all duration-150 ease-out ${
                 !isDualSpread
                   ? 'bg-primary/20 border-primary text-primary shadow-xs'
-                  : `${sectionBg} hover:bg-white/10 ${labelMuted}`
+                  : `${sectionBg} ${buttonHover} ${labelMuted}`
               }`}
             >
               <RectangleVertical size={15} />
@@ -107,10 +115,11 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                   isTwoColumn: true,
                 })
               }
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-xs font-medium transition-all ${
+              aria-pressed={isDualSpread}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-xs font-medium transition-all duration-150 ease-out ${
                 isDualSpread
                   ? 'bg-primary/20 border-primary text-primary shadow-xs'
-                  : `${sectionBg} hover:bg-white/10 ${labelMuted}`
+                  : `${sectionBg} ${buttonHover} ${labelMuted}`
               }`}
             >
               <BookOpen size={15} />
@@ -130,10 +139,13 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 <button
                   key={tKey}
                   onClick={() => onUpdateSettings({ theme: tKey })}
-                  className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
+                  aria-pressed={isSelected}
+                  className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all duration-150 ease-out ${
                     isSelected
                       ? 'ring-2 ring-primary ring-offset-1 ring-offset-black/50 border-white/60 font-semibold shadow-md'
-                      : 'border-white/10 hover:border-white/30'
+                      : isDark
+                      ? 'border-white/10 hover:border-white/30'
+                      : 'border-black/10 hover:border-black/30'
                   }`}
                   style={{
                     backgroundColor: t.bg,
@@ -156,10 +168,11 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
             <button
               type="button"
               onClick={() => onUpdateSettings({ textAlign: 'left' })}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border transition-colors ${
+              aria-pressed={textAlign === 'left'}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border transition-colors duration-150 ease-out ${
                 textAlign === 'left'
                   ? 'bg-primary/20 border-primary text-primary font-medium'
-                  : `${sectionBg} hover:bg-white/10 ${labelMuted}`
+                  : `${sectionBg} ${buttonHover} ${labelMuted}`
               }`}
               title="Align Left"
             >
@@ -169,10 +182,11 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
             <button
               type="button"
               onClick={() => onUpdateSettings({ textAlign: 'justify' })}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border transition-colors ${
+              aria-pressed={textAlign === 'justify'}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border transition-colors duration-150 ease-out ${
                 textAlign === 'justify'
                   ? 'bg-primary/20 border-primary text-primary font-medium'
-                  : `${sectionBg} hover:bg-white/10 ${labelMuted}`
+                  : `${sectionBg} ${buttonHover} ${labelMuted}`
               }`}
               title="Justify Text"
             >
@@ -182,10 +196,11 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
             <button
               type="button"
               onClick={() => onUpdateSettings({ textAlign: 'center' })}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border transition-colors ${
+              aria-pressed={textAlign === 'center'}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border transition-colors duration-150 ease-out ${
                 textAlign === 'center'
                   ? 'bg-primary/20 border-primary text-primary font-medium'
-                  : `${sectionBg} hover:bg-white/10 ${labelMuted}`
+                  : `${sectionBg} ${buttonHover} ${labelMuted}`
               }`}
               title="Align Center"
             >
@@ -217,12 +232,13 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                       customFont: '',
                     })
                   }
-                  className={`flex items-center justify-between px-2.5 py-2 rounded-lg border text-left transition-colors ${
+                  className={`flex items-center justify-between px-2.5 py-2 rounded-lg border text-left transition-colors duration-150 ease-out ${
                     isSelected
                       ? 'bg-primary/20 border-primary text-primary font-medium'
-                      : `${sectionBg} hover:bg-white/10`
+                      : `${sectionBg} ${buttonHover}`
                   }`}
                   style={{ fontFamily: font?.cssFamily }}
+                  aria-pressed={isSelected}
                 >
                   <span className="text-xs truncate">{item.label}</span>
                   {isSelected && <Check size={13} className="text-primary flex-shrink-0" />}
@@ -239,7 +255,8 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 value={settings.customFont || ''}
                 onChange={(e) => onUpdateSettings({ customFont: e.target.value })}
                 placeholder="Or enter custom font (e.g. Roboto, Lora)"
-                className={`w-full px-3 py-1.5 rounded-lg border text-xs outline-none transition-colors ${
+                aria-label="Custom font name"
+                className={`w-full px-3 py-1.5 rounded-lg border text-xs transition-colors duration-150 ease-out focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-color)] ${
                   isDark
                     ? 'bg-black/30 border-white/10 text-white placeholder-neutral-500 focus:border-primary'
                     : 'bg-white border-black/10 text-black placeholder-neutral-400 focus:border-primary'
@@ -249,8 +266,9 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 <button
                   type="button"
                   onClick={() => onUpdateSettings({ customFont: '' })}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors duration-150 ease-out"
                   title="Clear custom font"
+                  aria-label="Clear custom font"
                 >
                   <X size={12} />
                 </button>
@@ -281,6 +299,7 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 step={1}
                 value={settings.fontSize}
                 onChange={(e) => onUpdateSettings({ fontSize: Number(e.target.value) })}
+                aria-label="Font size"
                 className="flex-1 accent-primary cursor-pointer"
               />
               <span className="text-[10px] text-neutral-400 w-6 text-right">36px</span>
@@ -302,6 +321,7 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 step={2}
                 value={marginVal}
                 onChange={(e) => onUpdateSettings({ margin: Number(e.target.value) })}
+                aria-label="Margins"
                 className="flex-1 accent-primary cursor-pointer"
               />
               <span className="text-[10px] text-neutral-400 w-6 text-right">120px</span>
@@ -323,6 +343,7 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 step={0.05}
                 value={settings.lineSpacing}
                 onChange={(e) => onUpdateSettings({ lineSpacing: Number(e.target.value) })}
+                aria-label="Line spacing"
                 className="flex-1 accent-primary cursor-pointer"
               />
               <span className="text-[10px] text-neutral-400 w-6 text-right">2.4</span>
@@ -344,6 +365,7 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 step={0.1}
                 value={letterSpacingVal}
                 onChange={(e) => onUpdateSettings({ letterSpacing: Number(e.target.value) })}
+                aria-label="Letter spacing"
                 className="flex-1 accent-primary cursor-pointer"
               />
               <span className="text-[10px] text-neutral-400 w-6 text-right">3.0</span>
@@ -365,6 +387,7 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 step={1}
                 value={paragraphSpacingVal}
                 onChange={(e) => onUpdateSettings({ paragraphSpacing: Number(e.target.value) })}
+                aria-label="Paragraph spacing"
                 className="flex-1 accent-primary cursor-pointer"
               />
               <span className="text-[10px] text-neutral-400 w-6 text-right">24px</span>

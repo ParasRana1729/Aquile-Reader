@@ -72,15 +72,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory);
 
   // --- Reader Settings State ---
-  const [standardizeMargins, setStandardizeMargins] = useState(() => {
-    return localStorage.getItem('aquile_setting_std_margins') === 'true';
-  });
-  const [overrideAlignment, setOverrideAlignment] = useState(() => {
-    return localStorage.getItem('aquile_setting_override_align') === 'true';
-  });
-  const [autoSwitchColumns, setAutoSwitchColumns] = useState(() => {
-    return localStorage.getItem('aquile_setting_auto_columns') === 'true';
-  });
   const [readAloudAutoScroll, setReadAloudAutoScroll] = useState(() => {
     const val = localStorage.getItem('aquile_setting_readaloud_scroll');
     return val !== null ? val === 'true' : true;
@@ -119,26 +110,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [tutorialResetMessage, setTutorialResetMessage] = useState<string | null>(null);
 
   // --- Sync Folders State ---
+  // NOTE (clean-room port): no folder-watch/import backend is wired yet.
+  // Paths are remembered in localStorage only; nothing is scanned, so the
+  // UI must never report scanned book counts or sync times (f_031 shows an
+  // empty state with just the two action buttons).
   const [syncFolders, setSyncFolders] = useState<SyncFolderItem[]>(() => {
     const saved = localStorage.getItem('aquile_sync_folders');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((f: any) => ({
+            id: String(f.id ?? `sf-${Date.now()}`),
+            path: String(f.path ?? ''),
+            bookCount: 0,
+            lastSynced: 'Never',
+            status: 'idle' as const,
+          }));
+        }
       } catch (e) {
         // ignore
       }
     }
-    return [
-      {
-        id: 'sf-1',
-        path: '/home/paras/Documents/Books',
-        bookCount: 4,
-        lastSynced: 'Just now',
-        status: 'idle',
-      },
-    ];
+    return [];
   });
-  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [newFolderPath, setNewFolderPath] = useState('');
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
 
@@ -279,19 +275,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  // Sync folders execution
+  // Sync folders: backend not implemented — give honest feedback only.
+  // Never report a fake success or update "last synced" times.
   const handleSyncNow = () => {
-    setIsSyncingAll(true);
-    setTimeout(() => {
-      setSyncFolders((prev) =>
-        prev.map((f) => ({
-          ...f,
-          lastSynced: 'Just now',
-          status: 'idle',
-        }))
-      );
-      setIsSyncingAll(false);
-    }, 1200);
+    setSyncNotice(
+      syncFolders.length === 0
+        ? 'No sync folders configured yet. Folder watching lands with the desktop backend — nothing was scanned.'
+        : 'Folder watching is not wired yet — nothing was scanned. Added folders are remembered locally for now.'
+    );
   };
 
   const handleAddSyncFolder = () => {
@@ -396,37 +387,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Reader Settings
             </h1>
 
+            {/* Native f_026 shows exactly one top-level toggle here:
+                ReadAloud auto-scroll. (Surplus margin/alignment/column
+                toggles removed 2026-10-07 for parity; keys left untouched
+                in existing localStorage profiles.) */}
             <div className="space-y-1 divide-y divide-white/5">
-              {renderToggle(
-                'Standardize margins',
-                'Overrides any margin specified in the book to provide consistent layout in the reader',
-                standardizeMargins,
-                (val) => {
-                  setStandardizeMargins(val);
-                  updateSetting('aquile_setting_std_margins', val);
-                }
-              )}
-
-              {renderToggle(
-                'Override text alignment',
-                'Overrides any text alignment preference set in the book to provide consistent layout in the reader',
-                overrideAlignment,
-                (val) => {
-                  setOverrideAlignment(val);
-                  updateSetting('aquile_setting_override_align', val);
-                }
-              )}
-
-              {renderToggle(
-                'Auto switch to 1 column layout',
-                'In 2-column layout when device rotates to portrait mode, reader will auto switch to 1-column layout, and vice versa',
-                autoSwitchColumns,
-                (val) => {
-                  setAutoSwitchColumns(val);
-                  updateSetting('aquile_setting_auto_columns', val);
-                }
-              )}
-
               {renderToggle(
                 'ReadAloud auto-scroll',
                 'Auto scrolls the page to follow the sentence being read in the ReadAloud mode',
@@ -512,19 +477,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Experimental Section (matching win_025 / win_026) */}
             <div className="pt-6 space-y-3">
-              <h2 className="text-[18px] font-semibold text-white">Experimental</h2>
+              <h2 className="text-[20px] font-semibold text-white">Experimental</h2>
               <p className="text-[13px] text-neutral-400 max-w-2xl">
                 These features are still in development and might be little unstable or buggy. You can try them out and share feedback with us.
               </p>
               <div>
-                <a
-                  href="#issues"
-                  onClick={(e) => e.preventDefault()}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory('changelog')}
                   className="text-[13px] hover:underline"
                   style={{ color: currentTheme.accent }}
                 >
                   More details and known issues
-                </a>
+                </button>
               </div>
 
               <div className="space-y-1 divide-y divide-white/5 pt-2">
@@ -678,11 +643,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={handleSyncNow}
-                disabled={isSyncingAll}
-                className="px-4 py-2 rounded-md bg-white/10 hover:bg-white/15 text-white text-[13px] font-medium flex items-center gap-2 border border-white/10 transition-colors disabled:opacity-50"
+                title="Folder watching is not wired yet — shows status, scans nothing"
+                className="px-4 py-2 rounded-md bg-white/10 hover:bg-white/15 text-white text-[13px] font-medium flex items-center gap-2 border border-white/10 transition-colors"
               >
-                <RefreshCw size={14} className={isSyncingAll ? 'animate-spin' : ''} />
-                <span>{isSyncingAll ? 'Syncing...' : 'Sync now'}</span>
+                <RefreshCw size={14} />
+                <span>Sync now</span>
               </button>
 
               <button
@@ -695,12 +660,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
-            {/* Configured Folders List */}
+            {/* Honest backend-pending notice — never a fake success. */}
+            {syncNotice && (
+              <div
+                role="status"
+                className="max-w-2xl rounded-md border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[12px] leading-relaxed text-amber-200"
+              >
+                {syncNotice}
+              </div>
+            )}
+
+            {/* Configured Folders List (local paths only — nothing scanned yet) */}
             <div className="space-y-3 pt-4">
               <h2 className="text-[15px] font-medium text-neutral-200">
                 Configured Folders ({syncFolders.length})
               </h2>
 
+              {syncFolders.length === 0 ? (
+                <p className="text-[12px] text-neutral-400 max-w-2xl">
+                  No sync folders yet. Folders you add are remembered on this
+                  machine; automatic import starts with the desktop backend.
+                </p>
+              ) : (
               <div className="space-y-2 max-w-2xl">
                 {syncFolders.map((sf) => (
                   <div
@@ -714,7 +695,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {sf.path}
                         </div>
                         <div className="text-[11px] text-neutral-400 mt-0.5">
-                          {sf.bookCount} books tracked • Last synced: {sf.lastSynced}
+                          Remembered locally • Not yet scanned (backend pending)
                         </div>
                       </div>
                     </div>
@@ -729,6 +710,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 ))}
               </div>
+              )}
             </div>
 
             {/* Add folder modal */}
@@ -827,14 +809,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       key={id}
                       onClick={() => setTheme(id)}
-                      className={`flex flex-col items-center gap-2 p-2.5 rounded-lg transition-all focus:outline-none ${
+                      aria-pressed={isSelected}
+                      title={`${t.name}${isSelected ? ' (selected)' : ''}`}
+                      className={`flex flex-col items-center gap-2 p-2.5 rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
                         isSelected
-                          ? 'ring-2 bg-white/10 shadow-lg'
+                          ? 'bg-white/10 shadow-lg'
                           : 'hover:bg-white/5 opacity-90 hover:opacity-100'
                       }`}
                       style={{
-                        borderColor: isSelected ? t.accent : 'transparent',
-                        outlineColor: isSelected ? t.accent : 'transparent',
+                        // Explicit selected ring in the theme accent (Tailwind
+                        // `ring-2` alone leaves the color unset). f_041 shows
+                        // the Dark Side swatch with a pink ring.
+                        boxShadow: isSelected
+                          ? `0 0 0 2px ${t.accent}`
+                          : undefined,
                       }}
                     >
                       {/* Theme Dual-Swatch Box (matching win_032 / win_033) */}
@@ -870,9 +858,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {/* Add Theme Tile */}
                 <button
                   type="button"
-                  onClick={() => alert('Custom theme creator will be enabled in the upcoming release!')}
-                  className="flex flex-col items-center gap-2 p-2.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
-                  title="Custom accent themes"
+                  onClick={() => alert('Custom theme creator is not available yet — it ships in an upcoming release.')}
+                  className="flex flex-col items-center gap-2 p-2.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  title="Custom accent themes (not available yet)"
                 >
                   <div className="w-14 h-14 rounded-md border-2 border-dashed border-neutral-500 flex items-center justify-center hover:border-neutral-300">
                     <Plus size={20} className="text-neutral-400" />
@@ -1467,8 +1455,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   href="https://reddit.com/r/AquileReader"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-lg bg-[#ff4500] hover:scale-105 flex items-center justify-center transition-all shadow-md"
+                  className="w-10 h-10 rounded-lg bg-[#ff4500] hover:scale-105 flex items-center justify-center transition-all shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   title="Reddit Community"
+                  aria-label="Reddit community (opens in browser)"
                 >
                   <span className="text-[16px] font-bold text-white">r/</span>
                 </a>
@@ -1477,8 +1466,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   href="https://twitter.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-lg bg-black border border-white/20 hover:scale-105 flex items-center justify-center transition-all shadow-md"
+                  className="w-10 h-10 rounded-lg bg-black border border-white/20 hover:scale-105 flex items-center justify-center transition-all shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   title="X (Twitter)"
+                  aria-label="X social page (opens in browser)"
                 >
                   <span className="text-[16px] font-bold text-white font-sans">𝕏</span>
                 </a>
@@ -1487,8 +1477,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   href="https://substack.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-cyan-400"
+                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-cyan-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   title="Newsletter"
+                  aria-label="Newsletter (opens in browser)"
                 >
                   <FileText size={18} />
                 </a>
@@ -1501,18 +1492,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="flex items-center gap-4">
                 <button
                   type="button"
-                  onClick={() => alert('Support portal: support@optimilia.com')}
-                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-amber-400"
+                  onClick={() => setActiveCategory('faq')}
+                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   title="Contact Support"
+                  aria-label="Support — open frequently asked questions"
                 >
                   <MessageSquare size={18} />
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => alert('Thank you for using Aquile Reader on Linux!')}
-                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-yellow-400"
+                  onClick={() => alert('Thanks for reading with us! Public store ratings open with the production release — there is nothing to rate yet.')}
+                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-yellow-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   title="Rate & Review"
+                  aria-label="Rate and review (store listing pending)"
                 >
                   <Star size={18} />
                 </button>
@@ -1525,18 +1518,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="flex items-center gap-4">
                 <button
                   type="button"
-                  onClick={() => alert('Privacy Policy: All books, notes, and reading statistics remain strictly on your local machine. No tracking or telemetry.')}
-                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-cyan-400"
+                  onClick={() => alert('Privacy: books, notes, and reading statistics stay on this machine. Nothing is uploaded unless you explicitly enable Cloud Sync.')}
+                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-cyan-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   title="Privacy Policy"
+                  aria-label="Privacy policy summary"
                 >
                   <Shield size={18} />
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => alert('Terms of Service: Free and open public domain reading software with no advertisements.')}
-                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-blue-400"
+                  onClick={() => alert('Terms: this clean-room Ubuntu port ships for local reading of your own and public-domain books. Respect each book license and provider terms when enabling online features.')}
+                  className="w-10 h-10 rounded-lg bg-[#2b2b2e] hover:scale-105 flex items-center justify-center transition-all shadow-md text-blue-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   title="Terms of Service"
+                  aria-label="Terms of service summary"
                 >
                   <Info size={18} />
                 </button>

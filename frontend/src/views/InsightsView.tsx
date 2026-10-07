@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { ChevronDown, Calendar, Award, TrendingUp, Clock, BookOpen, Zap } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { fetchReadingStats } from '../utils/ipc';
 import { ReadingStats } from '../types/reader';
 
@@ -17,7 +17,10 @@ interface MonthData {
 export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = false }) => {
   const { currentTheme } = useTheme();
   const [selectedYear, setSelectedYear] = useState<'2026' | '2025'>('2026');
-  const [selectedRange, setSelectedRange] = useState<'All' | 'Last 30 days' | 'Last 7 days'>('All');
+  // Book filter per native f_046 (second dropdown reads "All"). Only the
+  // aggregate scope exists until per-book stats land with the backend, so
+  // "All" is the single honest option for now.
+  const [selectedBook, setSelectedBook] = useState<'All'>('All');
   const [trendMetric, setTrendMetric] = useState<TrendMetric>('days');
   const [hoveredMonth, setHoveredMonth] = useState<MonthData | null>(null);
   const [dbStats, setDbStats] = useState<ReadingStats | null>(null);
@@ -62,33 +65,20 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
 
   const activeDataset = monthlyData[selectedYear] || monthlyData['2026'];
 
-  // Calculate dynamic stats based on filters
+  // Aggregate stats for the selected year + book scope. Native f_046 shows
+  // 2 books / 6 days / 1.7 hrs / 17.4 avg with NO measured reading speed,
+  // so wpm stays null (rendered as "–") until the backend reports a real
+  // average. Never hardcode a plausible-looking speed.
   const stats = useMemo(() => {
     if (selectedYear === '2026') {
-      if (selectedRange === 'Last 7 days') {
-        return {
-          booksRead: 1,
-          daysRead: 1,
-          readingTimeHours: 0.3,
-          avgReadingTimeMins: 18.0,
-          readingSpeedWpm: 182,
-        };
-      } else if (selectedRange === 'Last 30 days') {
-        return {
-          booksRead: 1,
-          daysRead: 2,
-          readingTimeHours: 0.6,
-          avgReadingTimeMins: 18.0,
-          readingSpeedWpm: 182,
-        };
-      }
       if (dbStats && dbStats.totalReadingTimeSeconds > 0) {
+        const wpm = Math.round(dbStats.avgSpeedWpm || 0);
         return {
           booksRead: dbStats.totalBooksRead || 4,
           daysRead: Math.max(dbStats.totalDaysRead, 6),
           readingTimeHours: +(dbStats.totalReadingTimeSeconds / 3600).toFixed(1),
           avgReadingTimeMins: +(dbStats.avgReadingTimePerDayMinutes || 17.4).toFixed(1),
-          readingSpeedWpm: Math.round(dbStats.avgSpeedWpm || 182),
+          readingSpeedWpm: wpm > 0 ? wpm : null,
         };
       }
       return {
@@ -96,7 +86,7 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
         daysRead: 6,
         readingTimeHours: 1.7,
         avgReadingTimeMins: 17.4,
-        readingSpeedWpm: 182,
+        readingSpeedWpm: null,
       };
     } else {
       return {
@@ -107,7 +97,7 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
         readingSpeedWpm: 195,
       };
     }
-  }, [selectedYear, selectedRange]);
+  }, [selectedYear, selectedBook, dbStats]);
 
   // Calculate maximum value for chart scaling
   const { chartMax, stepSize, yTicks, getVal } = useMemo(() => {
@@ -174,7 +164,7 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
     >
       {/* Title & Filter dropdowns (matching win_044) */}
       <div className="flex flex-col gap-4">
-        <h1 className="text-[24px] font-semibold text-white tracking-tight">
+        <h1 className="text-[20px] font-semibold text-white tracking-tight">
           Reading insights
         </h1>
         <div className="flex flex-wrap gap-3">
@@ -182,7 +172,7 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value as '2026' | '2025')}
-              className="appearance-none bg-black/40 border border-white/10 hover:border-white/20 rounded px-4 py-1.5 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer transition-colors"
+              className="appearance-none h-9 bg-black/40 border border-white/10 hover:border-white/20 rounded px-4 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer transition-colors"
             >
               <option value="2026">2026</option>
               <option value="2025">2025</option>
@@ -192,13 +182,12 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
 
           <div className="relative">
             <select
-              value={selectedRange}
-              onChange={(e) => setSelectedRange(e.target.value as 'All' | 'Last 30 days' | 'Last 7 days')}
-              className="appearance-none bg-black/40 border border-white/10 hover:border-white/20 rounded px-4 py-1.5 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer transition-colors"
+              value={selectedBook}
+              onChange={(e) => setSelectedBook(e.target.value as 'All')}
+              title="Book filter — per-book breakdown lands with the stats backend"
+              className="appearance-none h-9 bg-black/40 border border-white/10 hover:border-white/20 rounded px-4 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer transition-colors"
             >
               <option value="All">All</option>
-              <option value="Last 30 days">Last 30 days</option>
-              <option value="Last 7 days">Last 7 days</option>
             </select>
             <ChevronDown size={14} className="absolute right-2.5 top-2.5 pointer-events-none text-neutral-400" />
           </div>
@@ -249,7 +238,7 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
           <div className="bg-[#202022]/90 border border-white/5 rounded-lg p-4 flex flex-col justify-between h-[116px] shadow-sm hover:border-white/15 transition-all">
             <span className="text-[12px] text-neutral-400 font-medium">Reading speed (wpm)</span>
             <span className="text-[34px] font-semibold text-white tracking-tight leading-none">
-              {stats.readingSpeedWpm ? stats.readingSpeedWpm : '-'}
+              {stats.readingSpeedWpm != null ? stats.readingSpeedWpm : '–'}
             </span>
           </div>
         </div>
@@ -319,7 +308,7 @@ export const InsightsView: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = 
             <select
               value={trendMetric}
               onChange={(e) => setTrendMetric(e.target.value as TrendMetric)}
-              className="w-full appearance-none bg-black/40 border border-white/10 hover:border-white/20 rounded px-4 py-1.5 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer transition-colors"
+              className="w-full appearance-none h-9 bg-black/40 border border-white/10 hover:border-white/20 rounded px-4 pr-8 text-[13px] text-white focus:outline-none focus:border-neutral-400 cursor-pointer transition-colors"
             >
               <option value="days">Days read</option>
               <option value="time">Reading time</option>
